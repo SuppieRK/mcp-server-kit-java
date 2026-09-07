@@ -1,7 +1,5 @@
 package io.github.suppierk.mcp.example.springwebflux;
 
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.github.suppierk.mcp.protocol.McpCallToolResult;
 import io.github.suppierk.mcp.protocol.McpTextContent;
 import io.github.suppierk.mcp.protocol.McpTool;
@@ -9,6 +7,7 @@ import io.github.suppierk.mcp.server.McpEmptyContext;
 import io.github.suppierk.mcp.server.McpServerKit;
 import io.github.suppierk.mcp.spring.webflux.SpringWebFluxMcpAdapter;
 import java.util.List;
+import java.util.Map;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -22,6 +21,7 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.RouterFunctions;
 import org.springframework.web.reactive.function.server.ServerResponse;
+import reactor.core.publisher.Mono;
 
 /** Shows how a Spring WebFlux host connects MCP building blocks to host-owned security. */
 @SpringBootApplication
@@ -63,7 +63,7 @@ public class SpringWebFluxExampleApplication {
         .asyncTool(
             new McpTool("current-user", emptyInputSchema()),
             (authentication, request, handlerContext) ->
-                reactor.core.publisher.Mono.just(textResult(authentication.getName())).toFuture())
+                Mono.just(textResult(authentication.getName())).toFuture())
         .build();
   }
 
@@ -129,11 +129,8 @@ public class SpringWebFluxExampleApplication {
   }
 
   /** Creates a closed schema for a tool that accepts no arguments. */
-  private static ObjectNode emptyInputSchema() {
-    return JsonNodeFactory.instance
-        .objectNode()
-        .put("type", "object")
-        .put("additionalProperties", false);
+  private static Map<String, ?> emptyInputSchema() {
+    return Map.of("type", "object", "additionalProperties", false);
   }
 
   /** Creates one successful text tool result. */

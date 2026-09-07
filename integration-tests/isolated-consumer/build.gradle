@@ -1,0 +1,69 @@
+import groovy.json.JsonSlurper
+import groovy.xml.XmlSlurper
+
+subprojects {
+	apply plugin: 'java'
+	java { toolchain.languageVersion = JavaLanguageVersion.of(25) }
+	tasks.withType(JavaCompile).configureEach { options.release = 17 }
+	repositories {
+		maven {
+			url = uri(providers.gradleProperty('kitRepository').get())
+			content { includeGroup 'io.github.suppierk' }
+			metadataSources {
+				if (project.name == 'gradle') { gradleMetadata() }
+				else { mavenPom(); ignoreGradleMetadataRedirection() }
+			}
+		}
+		mavenCentral { content { excludeGroup 'io.github.suppierk' } }
+	}
+	configurations {
+		hostLibraries
+		coexistingRuntime {
+			extendsFrom implementation, hostLibraries
+			attributes {
+				attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.JAVA_RUNTIME))
+			}
+		}
+	}
+	configurations.configureEach { resolutionStrategy.cacheChangingModulesFor 0, 'seconds' }
+	dependencies {
+		implementation "io.github.suppierk:mcp-core:${providers.gradleProperty('kitVersion').get()}"
+		hostLibraries 'com.fasterxml.jackson.core:jackson-databind:2.20.0'
+		hostLibraries 'tools.jackson.core:jackson-databind:3.0.0'
+		hostLibraries 'com.networknt:json-schema-validator:2.0.1'
+	}
+	sourceSets.main.java.srcDir rootProject.file('../../mcp-core/src/consumer/java')
+	sourceSets.main.resources.srcDir rootProject.file('src/hostResources')
+	def verifyGraph = tasks.register('verifyGraph') {
+		doLast {
+			[configurations.compileClasspath, configurations.runtimeClasspath].each { graph ->
+				assert graph.resolvedConfiguration.resolvedArtifacts.collect { it.moduleVersion.id.group } == ['io.github.suppierk'] : "Private dependencies leaked through ${project.name} metadata"
+			}
+			def host = configurations.coexistingRuntime.resolvedConfiguration.resolvedArtifacts.collect { it.moduleVersion.id.toString() }
+			assert host.contains('tools.jackson.core:jackson-databind:3.0.0')
+			assert host.contains('com.fasterxml.jackson.core:jackson-databind:2.20.0')
+			def version = providers.gradleProperty('kitVersion').get()
+			def publication = new File(providers.gradleProperty('kitRepository').get(), "io/github/suppierk/mcp-core/${version}/mcp-core-${version}")
+			assert Arrays.equals(configurations.runtimeClasspath.singleFile.bytes, new File("${publication}.jar").bytes) : 'Consumer must run the current publication, not a cached snapshot'
+			def metadata = new JsonSlurper().parse(new File("${publication}.module"))
+			assert metadata.variants.every { !it.dependencies && !it.dependencyConstraints }
+			def pom = new XmlSlurper().parse(new File("${publication}.pom"))
+			assert pom.dependencies.size() == 0 && pom.dependencyManagement.size() == 0
+		}
+	}
+	['alone', 'coexisting'].each { mode ->
+		def verification = tasks.register("verify${mode.capitalize()}", JavaExec) {
+			dependsOn classes, verifyGraph
+			mainClass = 'consumer.IsolatedConsumer'
+			// Host dependencies precede the kit, making accidental unrelocated lookups visible.
+			classpath = mode == 'alone' ? sourceSets.main.runtimeClasspath : files(sourceSets.main.output, configurations.coexistingRuntime.files.sort { it.name.startsWith('mcp-core-') ? 1 : 0 })
+			doFirst {
+				args configurations.runtimeClasspath.singleFile.absolutePath
+				if (mode == 'coexisting') args 'host'
+			}
+		}
+		tasks.named('check') { dependsOn verification }
+	}
+}
+
+tasks.register('check') { dependsOn subprojects.collect { it.tasks.named('check') } }

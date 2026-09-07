@@ -21,6 +21,7 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -56,11 +57,13 @@ class StdioMcpTransportTest {
                 (applicationContext, request, handlerContext) ->
                     new JsonRpcResultResponse(
                         request.id(),
-                        mapper
-                            .createObjectNode()
-                            .put("firstPending", !first.isDone())
-                            .put("firstContextCancelled", started.join().isCancelled())
-                            .put("secondCancelled", second.isCancelled())))
+                        Map.of(
+                            "firstPending",
+                            !first.isDone(),
+                            "firstContextCancelled",
+                            started.join().isCancelled(),
+                            "secondCancelled",
+                            second.isCancelled())))
             .build();
     var firstInput = new PipedInputStream();
     var firstClient = new PipedOutputStream(firstInput);
@@ -114,10 +117,7 @@ class StdioMcpTransportTest {
               "{\"firstPending\":true,\"firstContextCancelled\":false,\"secondCancelled\":true}"),
           probe.path("result"));
       assertEquals("", secondDiagnostics.toString(StandardCharsets.UTF_8));
-      assertTrue(
-          first.complete(
-              new JsonRpcResultResponse(
-                  mapper.valueToTree(1), mapper.createObjectNode().put("value", "first"))));
+      assertTrue(first.complete(new JsonRpcResultResponse(1, Map.of("value", "first"))));
     } finally {
       firstClient.close();
       try {
@@ -148,11 +148,8 @@ class StdioMcpTransportTest {
             .syncMethod(
                 "complete",
                 (applicationContext, request, handlerContext) -> {
-                  pending.complete(
-                      new JsonRpcResultResponse(
-                          mapper.valueToTree(1),
-                          mapper.createObjectNode().put("value", "original")));
-                  return new JsonRpcResultResponse(request.id(), mapper.createObjectNode());
+                  pending.complete(new JsonRpcResultResponse(1, Map.of("value", "original")));
+                  return new JsonRpcResultResponse(request.id(), Map.of());
                 })
             .build();
     String input =
@@ -210,7 +207,7 @@ class StdioMcpTransportTest {
                     Thread.currentThread().interrupt();
                     throw new IllegalStateException(exception);
                   }
-                  return new JsonRpcResultResponse(request.id(), mapper.createObjectNode());
+                  return new JsonRpcResultResponse(request.id(), Map.of());
                 })
             .build();
     var executor = Executors.newSingleThreadExecutor();
@@ -262,7 +259,7 @@ class StdioMcpTransportTest {
             .asyncMethod(
                 "pending",
                 (applicationContext, request, handlerContext) -> {
-                  if (request.id().intValue() == 1) {
+                  if (request.id().equals(1)) {
                     firstContext.set(handlerContext);
                     return first;
                   }
@@ -272,14 +269,14 @@ class StdioMcpTransportTest {
                 "probe",
                 (applicationContext, request, handlerContext) -> {
                   var state =
-                      mapper
-                          .createObjectNode()
-                          .put("cancelled", first.isCancelled())
-                          .put("contextCancelled", firstContext.get().isCancelled())
-                          .put("otherPending", !second.isDone());
-                  second.complete(
-                      new JsonRpcResultResponse(
-                          mapper.valueToTree(2), mapper.createObjectNode().put("value", "second")));
+                      Map.of(
+                          "cancelled",
+                          first.isCancelled(),
+                          "contextCancelled",
+                          firstContext.get().isCancelled(),
+                          "otherPending",
+                          !second.isDone());
+                  second.complete(new JsonRpcResultResponse(2, Map.of("value", "second")));
                   return new JsonRpcResultResponse(request.id(), state);
                 })
             .build();
@@ -350,6 +347,36 @@ class StdioMcpTransportTest {
   }
 
   @Test
+  void continuesProcessingAfterAnOutOfRangeErrorCode() throws Exception {
+    String input =
+        "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":2147483648,\"message\":\"failed\"}}\n"
+            + request(2, "server/discover", "")
+            + "\n";
+    var output = new ByteArrayOutputStream();
+    var diagnostics = new ByteArrayOutputStream();
+    try (var server = McpServerKit.builder("stdio-test", "1", McpEmptyContext.class).build()) {
+      new StdioMcpTransport<>(
+              server,
+              McpEmptyContext.INSTANCE,
+              new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)),
+              output,
+              diagnostics,
+              Runnable::run)
+          .run();
+
+      var lines = output.toString(StandardCharsets.UTF_8).lines().toList();
+      assertEquals(2, lines.size());
+      assertEquals(-32600, mapper.readTree(lines.get(0)).path("error").path("code").intValue());
+      var nextResponse = mapper.readTree(lines.get(1));
+      assertEquals(2, nextResponse.path("id").intValue());
+      assertEquals(
+          McpProtocol.REVISION,
+          nextResponse.path("result").path("supportedVersions").path(0).textValue());
+      assertEquals("", diagnostics.toString(StandardCharsets.UTF_8));
+    }
+  }
+
+  @Test
   void returnsParseErrorsAsNewlineDelimitedJson() throws Exception {
     ByteArrayOutputStream output = new ByteArrayOutputStream();
     McpServerKit<McpEmptyContext> server =
@@ -417,7 +444,7 @@ class StdioMcpTransportTest {
                 "queued",
                 (applicationContext, request, handlerContext) -> {
                   invoked.set(true);
-                  return new JsonRpcResultResponse(request.id(), mapper.createObjectNode());
+                  return new JsonRpcResultResponse(request.id(), Map.of());
                 })
             .build();
     var transport =
@@ -445,7 +472,7 @@ class StdioMcpTransportTest {
   void reusesTheExactConstructorContextWithoutOwningIt() throws Exception {
     AtomicReference<ApplicationContext> first = new AtomicReference<>();
     AtomicReference<ApplicationContext> second = new AtomicReference<>();
-    var calls = new java.util.concurrent.atomic.AtomicInteger();
+    var calls = new AtomicInteger();
     var serverKit =
         McpServerKit.builder("stdio-context", "1", ApplicationContext.class)
             .syncMethod(
@@ -453,8 +480,7 @@ class StdioMcpTransportTest {
                 (applicationContext, request, handlerContext) -> {
                   (calls.getAndIncrement() == 0 ? first : second).set(applicationContext);
                   return new JsonRpcResultResponse(
-                      request.id(),
-                      mapper.createObjectNode().put("value", applicationContext.value));
+                      request.id(), Map.of("value", applicationContext.value));
                 })
             .build();
     var applicationContext = new ApplicationContext("exact");

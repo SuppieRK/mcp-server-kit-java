@@ -1,7 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -16,14 +14,12 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpCancelledNotificationParams(
-    @JsonProperty("_meta") Optional<McpNotificationMetaObject> meta,
-    Optional<String> reason,
-    JsonNode requestId) {
+    Optional<McpNotificationMetaObject> meta, Optional<String> reason, Object requestId) {
   /** Validates and copies the protocol fields. */
   public McpCancelledNotificationParams {
     Objects.requireNonNull(meta, "meta");
     Objects.requireNonNull(reason, "reason");
-    requestId = Objects.requireNonNull(requestId, "requestId").deepCopy();
+    requestId = McpProtocol.copy(Objects.requireNonNull(requestId, "requestId"));
   }
 
   /**
@@ -31,7 +27,7 @@ public record McpCancelledNotificationParams(
    *
    * @return the copied identifier
    */
-  public JsonNode requestId() {
+  public Object requestId() {
     return McpProtocol.copy(requestId);
   }
 
@@ -48,7 +44,7 @@ public record McpCancelledNotificationParams(
   public static final class Builder {
     private Optional<McpNotificationMetaObject> meta = Optional.empty();
     private Optional<String> reason = Optional.empty();
-    private JsonNode requestId;
+    private Object requestId;
 
     private Builder() {}
 
@@ -100,7 +96,7 @@ public record McpCancelledNotificationParams(
      * @param requestId the value
      * @return this builder
      */
-    public Builder requestId(JsonNode requestId) {
+    public Builder requestId(Object requestId) {
       this.requestId = requestId;
       return this;
     }

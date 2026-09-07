@@ -1,6 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -11,8 +10,7 @@ import java.util.Optional;
  * @param serverInfo the optional server information
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
-public record McpResultMetaObject(
-    @JsonProperty("io.modelcontextprotocol/serverInfo") Optional<McpImplementation> serverInfo) {
+public record McpResultMetaObject(Optional<McpImplementation> serverInfo) {
   /** Validates and copies the protocol fields. */
   public McpResultMetaObject {
     Objects.requireNonNull(serverInfo, "serverInfo");

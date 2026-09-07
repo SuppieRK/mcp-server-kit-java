@@ -1,7 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 /**
  * The sender or recipient of messages and data in a conversation.
  *
@@ -9,10 +7,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 public enum McpRole {
   /** The assistant role. */
-  @JsonProperty("assistant")
   ASSISTANT,
 
   /** The user role. */
-  @JsonProperty("user")
   USER;
 }

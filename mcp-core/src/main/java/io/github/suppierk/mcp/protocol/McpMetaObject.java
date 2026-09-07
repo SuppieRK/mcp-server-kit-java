@@ -1,8 +1,6 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonValue;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -15,15 +13,14 @@ import java.util.Objects;
  * @param values the metadata fields
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
-public record McpMetaObject(ObjectNode values) {
+public record McpMetaObject(Map<String, ?> values) {
   /**
    * Creates metadata from a JSON object.
    *
    * @param values the metadata fields
    */
-  @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
   public McpMetaObject {
-    values = Objects.requireNonNull(values, "values").deepCopy();
+    values = McpProtocol.copy(Objects.requireNonNull(values, "values"));
   }
 
   /**
@@ -32,9 +29,8 @@ public record McpMetaObject(ObjectNode values) {
    * @return the metadata fields
    */
   @Override
-  @JsonValue
-  public ObjectNode values() {
-    return values.deepCopy();
+  public Map<String, ?> values() {
+    return McpProtocol.copy(values);
   }
 
   /**
@@ -48,7 +44,7 @@ public record McpMetaObject(ObjectNode values) {
 
   /** Builds {@link McpMetaObject} values. */
   public static final class Builder {
-    private ObjectNode values;
+    private Map<String, ?> values;
 
     private Builder() {}
 
@@ -58,7 +54,7 @@ public record McpMetaObject(ObjectNode values) {
      * @param values the value
      * @return this builder
      */
-    public Builder values(ObjectNode values) {
+    public Builder values(Map<String, ?> values) {
       this.values = values;
       return this;
     }

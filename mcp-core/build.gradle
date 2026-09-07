@@ -1,15 +1,124 @@
+import com.github.jengelman.gradle.plugins.shadow.relocation.SimpleRelocator
+
 plugins {
 	id 'java-library'
+	id 'com.gradleup.shadow'
 	id 'com.vanniktech.maven.publish'
 }
 
 description = 'MCP protocol and server primitives'
 
 dependencies {
-	api platform("com.fasterxml.jackson:jackson-bom:${rootProject.ext.versions.jackson}")
-	api 'com.fasterxml.jackson.core:jackson-databind'
-	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jdk8'
+	implementation platform("tools.jackson:jackson-bom:${rootProject.ext.versions.privateJackson}")
+	implementation 'tools.jackson.core:jackson-databind'
 	implementation "com.networknt:json-schema-validator:${rootProject.ext.versions.networkntSchema}"
 	testImplementation "com.tngtech.archunit:archunit:${rootProject.ext.versions.archunit}"
 	testImplementation "nl.jqno.equalsverifier:equalsverifier:${rootProject.ext.versions.equalsverifier}"
 }
+
+// The default published artifact owns its entire private JSON/validation runtime.
+tasks.named('jar') { archiveClassifier = 'unshaded' }
+tasks.named('shadowJar') {
+	archiveClassifier = ''
+	from(rootProject.file('LICENSE')) {
+		into 'META-INF'
+		rename { 'LICENSE-mcp-server-kit.txt' }
+	}
+	mergeServiceFiles()
+	[
+		'tools.jackson',
+		'com.fasterxml.jackson',
+		'com.networknt',
+		'com.ethlo',
+		'org.slf4j',
+		'org.yaml',
+		'org.snakeyaml'
+	].each { namespace ->
+		relocate namespace, "io.github.suppierk.mcp.internal.${namespace}"
+	}
+	// ResourceBundle and absolute Unicode lookup names are relocated with their resources.
+	relocate 'jsv-messages', 'io.github.suppierk.mcp.internal.jsv-messages'
+	relocate 'ucd', 'io.github.suppierk.mcp.internal.ucd'
+	// ClassLoader uses a literal path, so keep slashes in both the lookup and the JAR entry.
+	relocate new SimpleRelocator('^leap_second_dates[.]csv$',
+			'io/github/suppierk/mcp/internal/leap_second_dates.csv', [], [], true)
+	// External schema loading is blocked; root metaschemas are not a supported lookup surface.
+	exclude 'draft-04/**', 'draft-06/**', 'draft-07/**', 'draft/**'
+	// These describe the original, unrelocated modules; native-image support is not claimed.
+	exclude 'module-info.class', 'META-INF/versions/**/module-info.class', 'META-INF/native-image/**'
+	exclude 'META-INF/*.SF', 'META-INF/*.RSA', 'META-INF/*.DSA'
+	append 'META-INF/LICENSE'
+	append 'META-INF/LICENSE.txt'
+	append 'META-INF/NOTICE'
+	append 'META-INF/NOTICE.txt'
+	filesMatching([
+		'META-INF/services/**',
+		'META-INF/LICENSE*',
+		'META-INF/NOTICE*'
+	]) {
+		duplicatesStrategy = DuplicatesStrategy.INCLUDE
+	}
+}
+
+// Keep development variants for local source tests; publish only the isolated API/runtime.
+components.java.withVariantsFromConfiguration(configurations.apiElements) { skip() }
+components.java.withVariantsFromConfiguration(configurations.runtimeElements) { skip() }
+configurations.create('isolatedApiElements') {
+	canBeConsumed = true
+	canBeResolved = false
+	attributes {
+		attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.JAVA_API))
+		attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category, Category.LIBRARY))
+		attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements, LibraryElements.JAR))
+		attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling, Bundling.SHADOWED))
+		attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 17)
+	}
+	outgoing.artifact(tasks.named('shadowJar'))
+}
+components.java.addVariantsFromConfiguration(configurations.isolatedApiElements) { mapToMavenScope('compile') }
+
+def consumerJar = tasks.named('shadowJar').flatMap { it.archiveFile }
+def consumerClasses = layout.buildDirectory.dir('classes/consumer')
+tasks.register('compileIsolatedConsumer', JavaCompile) {
+	dependsOn tasks.named('shadowJar')
+	source = fileTree('src/consumer/java') { include '**/*.java' }
+	classpath = files(consumerJar)
+	destinationDirectory = consumerClasses
+	javaCompiler = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(25) }
+}
+tasks.register('verifyIsolatedConsumer', JavaExec) {
+	dependsOn tasks.named('compileIsolatedConsumer')
+	classpath = files(consumerClasses, consumerJar)
+	mainClass = 'consumer.IsolatedConsumer'
+	args consumerJar.get().asFile.absolutePath
+}
+tasks.named('check') { dependsOn tasks.named('verifyIsolatedConsumer') }
+
+// Stage exactly the generated publication, without signing or contacting an external repository.
+def verificationRepository = rootProject.layout.buildDirectory.dir('verification-repository')
+def publicationPath = "${project.group.toString().replace('.', '/')}/${project.name}/${project.version}"
+tasks.register('stageIsolatedPublication', Sync) {
+	dependsOn 'generatePomFileForMavenPublication', 'generateMetadataFileForMavenPublication'
+	into verificationRepository.map { it.dir(publicationPath) }
+	from(tasks.named('shadowJar'))
+	from(tasks.named('sourcesJar'))
+	from(tasks.named('plainJavadocJar'))
+	from(layout.buildDirectory.file('publications/maven/pom-default.xml')) {
+		rename {
+			"${project.name}-${project.version}.pom"
+		}
+	}
+	from(layout.buildDirectory.file('publications/maven/module.json')) {
+		rename {
+			"${project.name}-${project.version}.module"
+		}
+	}
+}
+tasks.register('verifyPublishedConsumers', Exec) {
+	dependsOn tasks.named('stageIsolatedPublication')
+	def wrapper = System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('windows') ? 'gradlew.bat' : 'gradlew'
+	commandLine rootProject.file(wrapper), '-p', rootProject.file('integration-tests/isolated-consumer'),
+			'check', '--console=plain', '--max-workers=2',
+			"-PkitRepository=${verificationRepository.get().asFile.absolutePath}", "-PkitVersion=${project.version}"
+}
+tasks.named('check') { dependsOn tasks.named('verifyPublishedConsumers') }

@@ -9,8 +9,10 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.github.suppierk.mcp.JsonTestValues;
 import io.github.suppierk.mcp.protocol.JsonRpcErrorResponse;
 import io.github.suppierk.mcp.protocol.JsonRpcMessage;
 import io.github.suppierk.mcp.protocol.JsonRpcNotification;
@@ -19,6 +21,7 @@ import io.github.suppierk.mcp.protocol.JsonRpcResultResponse;
 import io.github.suppierk.mcp.protocol.McpCallToolRequest;
 import io.github.suppierk.mcp.protocol.McpCallToolResult;
 import io.github.suppierk.mcp.protocol.McpCancelledNotificationParams;
+import io.github.suppierk.mcp.protocol.McpClientCapabilities;
 import io.github.suppierk.mcp.protocol.McpClientNotification;
 import io.github.suppierk.mcp.protocol.McpCompleteRequest;
 import io.github.suppierk.mcp.protocol.McpCompleteResult;
@@ -53,6 +56,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -68,6 +72,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class McpServerKitTest {
   private static final JsonNodeFactory JSON = JsonNodeFactory.instance;
@@ -80,8 +85,8 @@ class McpServerKitTest {
     var tool =
         McpTool.mcpTool()
             .name("answer")
-            .inputSchema(JSON.objectNode().put("type", "object"))
-            .outputSchema(output)
+            .inputSchema(JsonTestValues.object(JSON.objectNode().put("type", "object")))
+            .outputSchema(JsonTestValues.object(output))
             .build();
     var denial =
         McpCallToolResult.mcpCallToolResult()
@@ -99,8 +104,10 @@ class McpServerKitTest {
             server,
             handle(server, request(42, "tools/call", JSON.objectNode().put("name", "answer"))));
 
-    assertTrue(result.result().path("isError").booleanValue());
-    assertEquals("Not permitted", result.result().path("content").path(0).path("text").textValue());
+    assertTrue(JsonTestValues.json(result.result()).path("isError").booleanValue());
+    assertEquals(
+        "Not permitted",
+        JsonTestValues.json(result.result()).path("content").path(0).path("text").textValue());
   }
 
   @Test
@@ -113,7 +120,7 @@ class McpServerKitTest {
     var decoded =
         assertInstanceOf(McpListToolsRequest.class, server.decode(server.encode(original)));
 
-    var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+    var mapper = new ObjectMapper();
     assertEquals(mapper.readTree(server.encode(original)), mapper.readTree(server.encode(decoded)));
   }
 
@@ -130,7 +137,7 @@ class McpServerKitTest {
     var failure = error(handle(server, decoded));
 
     assertEquals(McpInvalidParamsException.CODE, failure.code());
-    assertEquals(JSON.numberNode(42), failure.id());
+    assertEquals(42, failure.id());
   }
 
   @Test
@@ -178,7 +185,8 @@ class McpServerKitTest {
     var serverKit =
         McpServerKit.builder("context", "1", ApplicationContext.class)
             .syncTool(
-                new McpTool("context", JSON.objectNode().put("type", "object")),
+                new McpTool(
+                    "context", JsonTestValues.object(JSON.objectNode().put("type", "object"))),
                 (applicationContext, parameters, handlerContext) -> {
                   seenContext.set(applicationContext);
                   seenHandlerContext.set(handlerContext);
@@ -190,8 +198,11 @@ class McpServerKitTest {
 
     assertEquals(
         "exact",
-        success(serverKit, handle(serverKit, applicationContext, request(1, "tools/call", call)))
-            .result()
+        JsonTestValues.json(
+                success(
+                        serverKit,
+                        handle(serverKit, applicationContext, request(1, "tools/call", call)))
+                    .result())
             .path("content")
             .path(0)
             .path("text")
@@ -200,13 +211,14 @@ class McpServerKitTest {
     assertInstanceOf(McpHandlerContext.class, seenHandlerContext.get());
     assertEquals(
         McpProtocol.REVISION,
-        success(
-                serverKit,
-                handle(
-                    serverKit,
-                    new ApplicationContext("built-in"),
-                    request(2, "server/discover", JSON.objectNode())))
-            .result()
+        JsonTestValues.json(
+                success(
+                        serverKit,
+                        handle(
+                            serverKit,
+                            new ApplicationContext("built-in"),
+                            request(2, "server/discover", JSON.objectNode())))
+                    .result())
             .path("supportedVersions")
             .path(0)
             .textValue());
@@ -234,7 +246,9 @@ class McpServerKitTest {
                   (applicationContext, call, handlerContext) ->
                       CompletableFuture.supplyAsync(
                           () -> {
-                            (call.id().intValue() == 1 ? firstSeen : secondSeen)
+                            (JsonTestValues.json(call.id()).intValue() == 1
+                                    ? firstSeen
+                                    : secondSeen)
                                 .set(applicationContext);
                             entered.countDown();
                             try {
@@ -273,12 +287,17 @@ class McpServerKitTest {
         McpServerKit.builder("codec", "1", McpEmptyContext.class).build();
     JsonRpcRequest request = request(1, "server/discover", JSON.objectNode());
     JsonRpcNotification notification =
-        new JsonRpcNotification("notifications/ignored", JSON.objectNode());
+        new JsonRpcNotification("notifications/ignored", JsonTestValues.object(Map.of()));
     JsonRpcResultResponse success =
-        new JsonRpcResultResponse(JSON.numberNode(1), JSON.objectNode().put("ok", true));
+        new JsonRpcResultResponse(
+            JsonTestValues.value(JSON.numberNode(1)),
+            JsonTestValues.value(JSON.objectNode().put("ok", true)));
     JsonRpcErrorResponse failure =
         new JsonRpcErrorResponse(
-            JSON.numberNode(1), -1, "failed", Optional.of(JSON.objectNode().put("why", "x")));
+            JsonTestValues.value(JSON.numberNode(1)),
+            -1,
+            "failed",
+            JsonTestValues.optionalValue(Optional.of(JSON.objectNode().put("why", "x"))));
 
     McpDiscoverRequest decodedRequest =
         assertInstanceOf(McpDiscoverRequest.class, server.decode(server.encode(request)));
@@ -308,6 +327,33 @@ class McpServerKitTest {
     server.close();
   }
 
+  @ParameterizedTest
+  @ValueSource(
+      strings = {"2147483648", "-2147483649", "9223372036854775808", "-9223372036854775809"})
+  void rejectsOutOfRangeErrorCodesWithoutThrowing(String code) {
+    try (var server = McpServerKit.builder("codec", "1", McpEmptyContext.class).build()) {
+      String json =
+          "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":" + code + ",\"message\":\"failed\"}}";
+
+      var failure =
+          assertInstanceOf(
+              JsonRpcErrorResponse.class, server.decode(json.getBytes(StandardCharsets.UTF_8)));
+
+      assertEquals(-32600, failure.code());
+      assertEquals(failure, error(handle(server, failure)));
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {-2147483648, -32600, 0, 2147483647})
+  void preservesSupportedErrorCodes(int code) {
+    try (var server = McpServerKit.builder("codec", "1", McpEmptyContext.class).build()) {
+      var original = new JsonRpcErrorResponse(1, code, "failed", Optional.empty());
+
+      assertEquals(original, server.decode(server.encode(original)));
+    }
+  }
+
   @Test
   void rejectsInvalidMessageShapesAndUnexpectedInboundMessages() {
     McpServerKit<McpEmptyContext> server =
@@ -329,11 +375,18 @@ class McpServerKitTest {
     assertEquals(parseFailure, handle(server, parseFailure).get(0));
     assertEquals(
         McpInvalidRequestException.CODE,
-        error(handle(server, new JsonRpcResultResponse(JSON.numberNode(1), JSON.objectNode())))
+        error(
+                handle(
+                    server,
+                    new JsonRpcResultResponse(
+                        JsonTestValues.value(JSON.numberNode(1)),
+                        JsonTestValues.value(JSON.objectNode()))))
             .code());
     assertEquals(
         List.of(),
-        handle(server, new JsonRpcNotification("notifications/ignored", JSON.objectNode())));
+        handle(
+            server,
+            new JsonRpcNotification("notifications/ignored", JsonTestValues.object(Map.of()))));
     assertThrows(NullPointerException.class, () -> server.handle(McpEmptyContext.INSTANCE, null));
 
     Flow.Publisher<JsonRpcMessage> publication =
@@ -351,7 +404,7 @@ class McpServerKitTest {
     var cancellation =
         new McpClientNotification(
             new McpCancelledNotificationParams(
-                Optional.empty(), Optional.of("done"), JSON.numberNode(42)));
+                Optional.empty(), Optional.of("done"), JsonTestValues.value(JSON.numberNode(42))));
 
     McpClientNotification decoded =
         assertInstanceOf(McpClientNotification.class, server.decode(server.encode(cancellation)));
@@ -360,7 +413,9 @@ class McpServerKitTest {
     assertEquals(List.of(), handle(server, cancellation));
     assertEquals(
         List.of(),
-        handle(server, new JsonRpcNotification("notifications/unknown", JSON.objectNode())));
+        handle(
+            server,
+            new JsonRpcNotification("notifications/unknown", JsonTestValues.object(Map.of()))));
   }
 
   @ParameterizedTest(name = "{0}")
@@ -386,19 +441,23 @@ class McpServerKitTest {
     JsonRpcResultResponse response =
         success(server, handle(server, request(1, "server/discover", JSON.objectNode())));
     assertEquals(
-        McpProtocol.REVISION, response.result().path("supportedVersions").path(0).textValue());
+        McpProtocol.REVISION,
+        JsonTestValues.json(response.result()).path("supportedVersions").path(0).textValue());
     assertEquals(
         "server",
-        response
-            .result()
+        JsonTestValues.json(response.result())
             .path("_meta")
             .path("io.modelcontextprotocol/serverInfo")
             .path("name")
             .textValue());
-    assertEquals("Use it.", response.result().path("instructions").textValue());
+    assertEquals(
+        "Use it.", JsonTestValues.json(response.result()).path("instructions").textValue());
 
     JsonRpcRequest absent =
-        new JsonRpcRequest(JSON.numberNode(2), "server/discover", JSON.objectNode());
+        new JsonRpcRequest(
+            JsonTestValues.value(JSON.numberNode(2)),
+            "server/discover",
+            JsonTestValues.object(JSON.objectNode()));
     assertEquals(McpInvalidParamsException.CODE, error(handle(server, absent)).code());
     ObjectNode unsupported = JSON.objectNode();
     metadata(unsupported).put(McpProtocol.PROTOCOL_VERSION_KEY, "1900-01-01");
@@ -406,7 +465,11 @@ class McpServerKitTest {
         McpUnsupportedProtocolVersionException.CODE,
         error(
                 handle(
-                    server, new JsonRpcRequest(JSON.numberNode(3), "server/discover", unsupported)))
+                    server,
+                    new JsonRpcRequest(
+                        JsonTestValues.value(JSON.numberNode(3)),
+                        "server/discover",
+                        JsonTestValues.object(unsupported))))
             .code());
   }
 
@@ -420,7 +483,8 @@ class McpServerKitTest {
     output.putObject("properties").putObject("echo").put("type", "string");
     McpTool tool =
         new McpTool(
-            Optional.of(new McpMetaObject(JSON.objectNode().put("owner", "test"))),
+            Optional.of(
+                new McpMetaObject(JsonTestValues.object(JSON.objectNode().put("owner", "test")))),
             Optional.of(
                 new McpToolAnnotations(
                     Optional.empty(),
@@ -430,30 +494,36 @@ class McpServerKitTest {
                     Optional.empty())),
             Optional.of("Returns text."),
             Optional.empty(),
-            input,
+            JsonTestValues.object(input),
             "echo",
-            Optional.of(output),
+            JsonTestValues.optionalObject(Optional.of(output)),
             Optional.of("Echo"));
     McpServerKit<McpEmptyContext> server =
         McpServerKit.builder("tools", "1", McpEmptyContext.class)
             .syncTool(
                 tool,
                 (applicationContext, request, handlerContext) -> {
-                  String value = request.arguments().orElseThrow().path("value").textValue();
+                  String value =
+                      JsonTestValues.json(request.arguments().orElseThrow())
+                          .path("value")
+                          .textValue();
                   return new McpCallToolResult(
-                      List.of(new McpTextContent(value)), JSON.objectNode().put("echo", value));
+                      List.of(new McpTextContent(value)),
+                      JsonTestValues.value(JSON.objectNode().put("echo", value)));
                 })
             .build();
 
     JsonRpcResultResponse listed =
         success(server, handle(server, request(1, "tools/list", JSON.objectNode())));
-    assertEquals("echo", listed.result().path("tools").path(0).path("name").textValue());
+    assertEquals(
+        "echo",
+        JsonTestValues.json(listed.result()).path("tools").path(0).path("name").textValue());
     ObjectNode call = JSON.objectNode().put("name", "echo");
     call.set("arguments", JSON.objectNode().put("value", "hello"));
     assertEquals(
         "hello",
-        success(server, handle(server, request(2, "tools/call", call)))
-            .result()
+        JsonTestValues.json(
+                success(server, handle(server, request(2, "tools/call", call))).result())
             .path("structuredContent")
             .path("echo")
             .textValue());
@@ -508,40 +578,52 @@ class McpServerKitTest {
 
     assertEquals(
         "fixed",
-        success(server, handle(server, request(1, "resources/list", JSON.objectNode())))
-            .result()
+        JsonTestValues.json(
+                success(server, handle(server, request(1, "resources/list", JSON.objectNode())))
+                    .result())
             .path("resources")
             .path(0)
             .path("name")
             .textValue());
     assertEquals(
         "files",
-        success(server, handle(server, request(2, "resources/templates/list", JSON.objectNode())))
-            .result()
+        JsonTestValues.json(
+                success(
+                        server,
+                        handle(server, request(2, "resources/templates/list", JSON.objectNode())))
+                    .result())
             .path("resourceTemplates")
             .path(0)
             .path("name")
             .textValue());
     assertEquals(
         "fixed",
-        success(
-                server,
-                handle(
-                    server,
-                    request(3, "resources/read", JSON.objectNode().put("uri", "file:///fixed"))))
-            .result()
+        JsonTestValues.json(
+                success(
+                        server,
+                        handle(
+                            server,
+                            request(
+                                3,
+                                "resources/read",
+                                JSON.objectNode().put("uri", "file:///fixed"))))
+                    .result())
             .path("contents")
             .path(0)
             .path("text")
             .textValue());
     assertEquals(
         "template",
-        success(
-                server,
-                handle(
-                    server,
-                    request(4, "resources/read", JSON.objectNode().put("uri", "file:///other"))))
-            .result()
+        JsonTestValues.json(
+                success(
+                        server,
+                        handle(
+                            server,
+                            request(
+                                4,
+                                "resources/read",
+                                JSON.objectNode().put("uri", "file:///other"))))
+                    .result())
             .path("contents")
             .path(0)
             .path("text")
@@ -555,8 +637,9 @@ class McpServerKitTest {
             .code());
     assertEquals(
         "hello",
-        success(server, handle(server, request(6, "prompts/list", JSON.objectNode())))
-            .result()
+        JsonTestValues.json(
+                success(server, handle(server, request(6, "prompts/list", JSON.objectNode())))
+                    .result())
             .path("prompts")
             .path(0)
             .path("name")
@@ -569,8 +652,8 @@ class McpServerKitTest {
     promptRequest.set("arguments", JSON.objectNode().put("name", "Ada"));
     assertEquals(
         "prompt",
-        success(server, handle(server, request(8, "prompts/get", promptRequest)))
-            .result()
+        JsonTestValues.json(
+                success(server, handle(server, request(8, "prompts/get", promptRequest))).result())
             .path("messages")
             .path(0)
             .path("content")
@@ -598,8 +681,9 @@ class McpServerKitTest {
               .build();
       assertEquals(
           "custom",
-          success(server, handle(server, request(1, "example/run", JSON.objectNode())))
-              .result()
+          JsonTestValues.json(
+                  success(server, handle(server, request(1, "example/run", JSON.objectNode())))
+                      .result())
               .path("value")
               .textValue());
       assertEquals("mcp-test-executor", thread.get());
@@ -673,13 +757,13 @@ class McpServerKitTest {
     McpServerKit.Builder<McpEmptyContext> builder =
         McpServerKit.builder("duplicates", "1", McpEmptyContext.class);
     builder.syncTool(
-        new McpTool("tool", schema),
+        new McpTool("tool", JsonTestValues.object(schema)),
         (applicationContext, request, handlerContext) -> toolResult("x"));
     assertThrows(
         IllegalArgumentException.class,
         () ->
             builder.syncTool(
-                new McpTool("tool", schema),
+                new McpTool("tool", JsonTestValues.object(schema)),
                 (applicationContext, request, handlerContext) -> toolResult("x")));
     for (String method : clientToServerMethods()) {
       assertThrows(
@@ -691,7 +775,9 @@ class McpServerKitTest {
                       (applicationContext, request, handlerContext) -> response(request, "x"))
                   .build());
     }
-    assertThrows(IllegalArgumentException.class, () -> new McpTool("bad", JSON.objectNode()));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new McpTool("bad", JsonTestValues.object(JSON.objectNode())));
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -710,10 +796,11 @@ class McpServerKitTest {
     schema.putObject("properties").putObject("value").put("type", "string");
     var server = serverWithToolSchema(schema);
 
-    ObjectNode supplied = server.toolInputSchema("reference").orElseThrow();
-    supplied.put("changed", true);
+    var supplied = server.toolInputSchema("reference").orElseThrow();
+    assertThrows(UnsupportedOperationException.class, supplied::clear);
 
-    assertFalse(server.toolInputSchema("reference").orElseThrow().has("changed"));
+    assertFalse(
+        JsonTestValues.json(server.toolInputSchema("reference").orElseThrow()).has("changed"));
     assertEquals(Optional.empty(), server.toolInputSchema("missing"));
     assertThrows(NullPointerException.class, () -> server.toolInputSchema(null));
   }
@@ -732,7 +819,7 @@ class McpServerKitTest {
         () ->
             McpServerKit.builder("schema", "1", McpEmptyContext.class)
                 .syncTool(
-                    new McpTool("external", schema),
+                    new McpTool("external", JsonTestValues.object(schema)),
                     (applicationContext, request, handlerContext) -> toolResult("x"))
                 .build());
   }
@@ -763,13 +850,15 @@ class McpServerKitTest {
             .syncMethod(
                 "extension/run",
                 (applicationContext, request, handlerContext) ->
-                    new JsonRpcResultResponse(JSON.numberNode(999), JSON.objectNode()))
+                    new JsonRpcResultResponse(
+                        JsonTestValues.value(JSON.numberNode(999)),
+                        JsonTestValues.value(JSON.objectNode())))
             .build();
 
     JsonRpcErrorResponse response =
         error(handle(server, request(42, "extension/run", JSON.objectNode())));
 
-    assertEquals(JSON.numberNode(42), response.id());
+    assertEquals(42, response.id());
     assertEquals(-32603, response.code());
     assertEquals("Internal error", response.message());
 
@@ -779,11 +868,14 @@ class McpServerKitTest {
                 "extension/error",
                 (applicationContext, call, handlerContext) ->
                     new JsonRpcErrorResponse(
-                        call.id(), -32099, "Extension error", Optional.empty()))
+                        JsonTestValues.value(call.id()),
+                        -32099,
+                        "Extension error",
+                        JsonTestValues.optionalValue(Optional.empty())))
             .build();
     JsonRpcErrorResponse custom =
         error(handle(customErrorServer, request(43, "extension/error", JSON.objectNode())));
-    assertEquals(JSON.numberNode(43), custom.id());
+    assertEquals(43, custom.id());
     assertEquals(-32099, custom.code());
   }
 
@@ -796,7 +888,8 @@ class McpServerKitTest {
                 (applicationContext, parameters, handlerContext) -> {
                   ObjectNode value = JSON.objectNode();
                   value.putArray("values").add("done");
-                  return new McpCompleteResult(Optional.empty(), value, "complete");
+                  return new McpCompleteResult(
+                      Optional.empty(), JsonTestValues.object(value), "complete");
                 })
             .syncMethod(
                 "extension/notify",
@@ -811,14 +904,17 @@ class McpServerKitTest {
 
     assertEquals(
         "done",
-        success(server, handle(server, request(44, McpCompleteRequest.METHOD, completion)))
-            .result()
+        JsonTestValues.json(
+                success(server, handle(server, request(44, McpCompleteRequest.METHOD, completion)))
+                    .result())
             .path("completion")
             .path("values")
             .path(0)
             .textValue());
     assertEquals(
-        List.of(), handle(server, new JsonRpcNotification("extension/notify", JSON.objectNode())));
+        List.of(),
+        handle(
+            server, new JsonRpcNotification("extension/notify", JsonTestValues.object(Map.of()))));
     assertFalse(extensionInvoked.get());
   }
 
@@ -838,7 +934,7 @@ class McpServerKitTest {
     JsonRpcErrorResponse response =
         error(handle(server, request(17, "extension/failure", JSON.objectNode())));
 
-    assertEquals(JSON.numberNode(17), response.id());
+    assertEquals(17, response.id());
     assertEquals(exception.code(), response.code());
     assertEquals(exception.getMessage(), response.message());
   }
@@ -901,9 +997,9 @@ class McpServerKitTest {
   }
 
   private static Stream<Arguments> protocolExceptions() {
-    Optional<com.fasterxml.jackson.databind.JsonNode> noData = Optional.empty();
+    Optional<Object> noData = Optional.empty();
     var capabilities =
-        new io.github.suppierk.mcp.protocol.McpClientCapabilities(
+        new McpClientCapabilities(
             Optional.empty(),
             Optional.empty(),
             Optional.empty(),
@@ -928,7 +1024,7 @@ class McpServerKitTest {
   private static McpServerKit<McpEmptyContext> serverWithToolSchema(ObjectNode schema) {
     return McpServerKit.builder("schema", "1", McpEmptyContext.class)
         .syncTool(
-            new McpTool("reference", schema),
+            new McpTool("reference", JsonTestValues.object(schema)),
             (applicationContext, request, handlerContext) -> toolResult("x"))
         .build();
   }
@@ -947,13 +1043,16 @@ class McpServerKitTest {
   }
 
   private static JsonRpcResultResponse response(JsonRpcRequest request, String value) {
-    return new JsonRpcResultResponse(request.id(), JSON.objectNode().put("value", value));
+    return new JsonRpcResultResponse(
+        JsonTestValues.value(request.id()),
+        JsonTestValues.value(JSON.objectNode().put("value", value)));
   }
 
   private static JsonRpcRequest request(int id, String method, ObjectNode values) {
     ObjectNode params = values.deepCopy();
     metadata(params);
-    return new JsonRpcRequest(JSON.numberNode(id), method, params);
+    return new JsonRpcRequest(
+        JsonTestValues.value(JSON.numberNode(id)), method, JsonTestValues.object(params));
   }
 
   private static ObjectNode metadata(ObjectNode params) {

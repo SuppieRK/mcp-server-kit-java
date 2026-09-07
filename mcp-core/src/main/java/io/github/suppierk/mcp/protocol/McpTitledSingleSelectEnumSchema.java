@@ -1,8 +1,7 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -16,9 +15,9 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpTitledSingleSelectEnumSchema(
-    @JsonProperty("default") Optional<String> defaultValue,
+    Optional<String> defaultValue,
     Optional<String> description,
-    List<ObjectNode> oneOf,
+    List<Map<String, ?>> oneOf,
     Optional<String> title)
     implements McpEnumSchema, McpPrimitiveSchemaDefinition, McpSingleSelectEnumSchema {
 
@@ -37,7 +36,7 @@ public record McpTitledSingleSelectEnumSchema(
    *
    * @return the copied option definitions
    */
-  public List<ObjectNode> oneOf() {
+  public List<Map<String, ?>> oneOf() {
     return McpProtocol.copy(oneOf);
   }
 
@@ -46,7 +45,6 @@ public record McpTitledSingleSelectEnumSchema(
    *
    * @return the constant value
    */
-  @JsonProperty("type")
   public String type() {
     return TYPE;
   }
@@ -64,7 +62,7 @@ public record McpTitledSingleSelectEnumSchema(
   public static final class Builder {
     private Optional<String> defaultValue = Optional.empty();
     private Optional<String> description = Optional.empty();
-    private List<ObjectNode> oneOf;
+    private List<Map<String, ?>> oneOf;
     private Optional<String> title = Optional.empty();
 
     private Builder() {}
@@ -117,7 +115,7 @@ public record McpTitledSingleSelectEnumSchema(
      * @param oneOf the value
      * @return this builder
      */
-    public Builder oneOf(List<ObjectNode> oneOf) {
+    public Builder oneOf(List<Map<String, ?>> oneOf) {
       this.oneOf = oneOf;
       return this;
     }

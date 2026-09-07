@@ -1,11 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonAnyGetter;
-import com.fasterxml.jackson.annotation.JsonAnySetter;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
-import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -27,13 +21,12 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpRequestMetaObject(
-    @JsonProperty("io.modelcontextprotocol/clientCapabilities")
-        McpClientCapabilities clientCapabilities,
-    @JsonProperty("io.modelcontextprotocol/clientInfo") Optional<McpImplementation> clientInfo,
-    @JsonProperty("io.modelcontextprotocol/logLevel") Optional<McpLoggingLevel> logLevel,
-    @JsonProperty("io.modelcontextprotocol/protocolVersion") String protocolVersion,
-    Optional<JsonNode> progressToken,
-    @JsonAnySetter @JsonAnyGetter Map<String, JsonNode> extensions) {
+    McpClientCapabilities clientCapabilities,
+    Optional<McpImplementation> clientInfo,
+    Optional<McpLoggingLevel> logLevel,
+    String protocolVersion,
+    Optional<Object> progressToken,
+    Map<String, ?> extensions) {
   /** Validates and copies the protocol fields. */
   public McpRequestMetaObject {
     Objects.requireNonNull(clientCapabilities, "clientCapabilities");
@@ -41,7 +34,7 @@ public record McpRequestMetaObject(
     Objects.requireNonNull(logLevel, "logLevel");
     Objects.requireNonNull(protocolVersion, "protocolVersion");
     progressToken = McpProtocol.copy(progressToken);
-    extensions = copyExtensions(extensions);
+    extensions = McpProtocol.copyObject(extensions);
   }
 
   /**
@@ -49,17 +42,8 @@ public record McpRequestMetaObject(
    *
    * @return the additional metadata
    */
-  @JsonAnyGetter
-  public Map<String, JsonNode> extensions() {
-    return copyExtensions(extensions);
-  }
-
-  /** Copies metadata without exposing mutable JSON values. */
-  private static Map<String, JsonNode> copyExtensions(Map<String, JsonNode> source) {
-    Map<String, JsonNode> result = new LinkedHashMap<>();
-    Objects.requireNonNull(source, "extensions")
-        .forEach((key, value) -> result.put(key, McpProtocol.copy(value)));
-    return Collections.unmodifiableMap(result);
+  public Map<String, ?> extensions() {
+    return extensions;
   }
 
   /**
@@ -67,7 +51,7 @@ public record McpRequestMetaObject(
    *
    * @return the copied token
    */
-  public Optional<JsonNode> progressToken() {
+  public Optional<Object> progressToken() {
     return McpProtocol.copy(progressToken);
   }
 
@@ -86,8 +70,8 @@ public record McpRequestMetaObject(
     private Optional<McpImplementation> clientInfo = Optional.empty();
     private Optional<McpLoggingLevel> logLevel = Optional.empty();
     private String protocolVersion;
-    private Optional<JsonNode> progressToken = Optional.empty();
-    private Map<String, JsonNode> extensions = Map.of();
+    private Optional<Object> progressToken = Optional.empty();
+    private Map<String, ?> extensions = Map.of();
 
     private Builder() {}
 
@@ -161,7 +145,7 @@ public record McpRequestMetaObject(
      * @param progressToken the optional value
      * @return this builder
      */
-    public Builder progressToken(Optional<JsonNode> progressToken) {
+    public Builder progressToken(Optional<Object> progressToken) {
       this.progressToken = progressToken;
       return this;
     }
@@ -172,7 +156,7 @@ public record McpRequestMetaObject(
      * @param progressToken the value, or {@code null} to clear it
      * @return this builder
      */
-    public Builder progressToken(JsonNode progressToken) {
+    public Builder progressToken(Object progressToken) {
       return progressToken(Optional.ofNullable(progressToken));
     }
 
@@ -192,7 +176,7 @@ public record McpRequestMetaObject(
      * @param extensions the metadata fields
      * @return this builder
      */
-    public Builder extensions(Map<String, JsonNode> extensions) {
+    public Builder extensions(Map<String, ?> extensions) {
       this.extensions = extensions;
       return this;
     }

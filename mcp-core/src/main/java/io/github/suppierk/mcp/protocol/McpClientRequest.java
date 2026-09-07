@@ -1,7 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.databind.JsonNode;
-
 /**
  * A typed request sent by an MCP client.
  *
@@ -23,7 +21,7 @@ public sealed interface McpClientRequest extends JsonRpcMessage
    *
    * @return the request identifier
    */
-  JsonNode id();
+  Object id();
 
   /**
    * Gets the constant method name.

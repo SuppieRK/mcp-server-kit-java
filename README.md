@@ -16,9 +16,7 @@ This example registers one synchronous tool with an explicit application-context
 ```java
 record RequestContext(String userName) {}
 
-ObjectNode inputSchema = JsonNodeFactory.instance.objectNode()
-    .put("type", "object")
-    .put("additionalProperties", false);
+var inputSchema = Map.of("type", "object", "additionalProperties", false);
 
 McpServerKit<RequestContext> serverKit =
     McpServerKit.builder("example", "1.0.0", RequestContext.class)
@@ -38,6 +36,23 @@ The host passes one `RequestContext` to `McpServerKit.handle` for each invocatio
 
 Use `StdioMcpTransport` for a process transport. Use `StreamableHttpMcpTransport` with a framework
 adapter or a framework-native endpoint for HTTP.
+
+## JSON values
+
+Use `McpServerKit.encode` and `decode` for protocol JSON. Public models do not require a JSON
+library or expose mapper configuration. Arbitrary JSON uses string-keyed `Map` values, `List`
+values, strings, booleans, and standard immutable Java numbers, including `BigInteger` and
+`BigDecimal`. Floating-point values must be finite. The kit decodes decimals without binary
+floating-point rounding and copies containers deeply into immutable values.
+
+Maps and lists can contain Java `null`. For a required arbitrary-JSON member, use
+`McpJsonNull.INSTANCE` to represent JSON null. For an optional member, use `Optional.empty()`
+to omit it or `Optional.of(McpJsonNull.INSTANCE)` to emit an explicit null.
+
+The published `mcp-core` JAR bundles its JSON and schema implementation under private, relocated
+packages. Its Maven POM and Gradle metadata add no JSON dependencies or version constraints to
+your application. You can choose your own JSON libraries independently; direct serialization of
+protocol records with an application mapper is not the kit's wire-format contract.
 
 ## Modules
 

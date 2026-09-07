@@ -1,6 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -10,8 +9,7 @@ import java.util.Optional;
  * @param meta the optional protocol metadata
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
-public record McpNotificationParams(
-    @JsonProperty("_meta") Optional<McpNotificationMetaObject> meta) {
+public record McpNotificationParams(Optional<McpNotificationMetaObject> meta) {
   /** Validates and copies the protocol fields. */
   public McpNotificationParams {
     Objects.requireNonNull(meta, "meta");

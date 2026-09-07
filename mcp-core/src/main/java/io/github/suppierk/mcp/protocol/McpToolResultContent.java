@@ -1,7 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -24,10 +22,10 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpToolResultContent(
-    @JsonProperty("_meta") Optional<McpMetaObject> meta,
+    Optional<McpMetaObject> meta,
     List<McpContentBlock> content,
     Optional<Boolean> isError,
-    Optional<JsonNode> structuredContent,
+    Optional<Object> structuredContent,
     String toolUseId)
     implements McpSamplingMessageContentBlock {
 
@@ -47,7 +45,7 @@ public record McpToolResultContent(
    *
    * @return the copied structured content
    */
-  public Optional<JsonNode> structuredContent() {
+  public Optional<Object> structuredContent() {
     return McpProtocol.copy(structuredContent);
   }
 
@@ -56,7 +54,6 @@ public record McpToolResultContent(
    *
    * @return the constant value
    */
-  @JsonProperty("type")
   public String type() {
     return TYPE;
   }
@@ -75,7 +72,7 @@ public record McpToolResultContent(
     private Optional<McpMetaObject> meta = Optional.empty();
     private List<McpContentBlock> content;
     private Optional<Boolean> isError = Optional.empty();
-    private Optional<JsonNode> structuredContent = Optional.empty();
+    private Optional<Object> structuredContent = Optional.empty();
     private String toolUseId;
 
     private Builder() {}
@@ -139,7 +136,7 @@ public record McpToolResultContent(
      * @param structuredContent the optional value
      * @return this builder
      */
-    public Builder structuredContent(Optional<JsonNode> structuredContent) {
+    public Builder structuredContent(Optional<Object> structuredContent) {
       this.structuredContent = structuredContent;
       return this;
     }
@@ -150,7 +147,7 @@ public record McpToolResultContent(
      * @param structuredContent the value, or {@code null} to clear it
      * @return this builder
      */
-    public Builder structuredContent(JsonNode structuredContent) {
+    public Builder structuredContent(Object structuredContent) {
       return structuredContent(Optional.ofNullable(structuredContent));
     }
 

@@ -1,7 +1,6 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -19,14 +18,12 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpCompleteResult(
-    @JsonProperty("_meta") Optional<McpResultMetaObject> meta,
-    ObjectNode completion,
-    String resultType)
+    Optional<McpResultMetaObject> meta, Map<String, ?> completion, String resultType)
     implements McpServerResult {
   /** Validates and copies the protocol fields. */
   public McpCompleteResult {
     Objects.requireNonNull(meta, "meta");
-    completion = Objects.requireNonNull(completion, "completion").deepCopy();
+    completion = McpProtocol.copy(Objects.requireNonNull(completion, "completion"));
     Objects.requireNonNull(resultType, "resultType");
   }
 
@@ -35,7 +32,7 @@ public record McpCompleteResult(
    *
    * @return the copied completion value
    */
-  public ObjectNode completion() {
+  public Map<String, ?> completion() {
     return McpProtocol.copy(completion);
   }
 
@@ -51,7 +48,7 @@ public record McpCompleteResult(
   /** Builds {@link McpCompleteResult} values. */
   public static final class Builder {
     private Optional<McpResultMetaObject> meta = Optional.empty();
-    private ObjectNode completion;
+    private Map<String, ?> completion;
     private String resultType;
 
     private Builder() {}
@@ -83,7 +80,7 @@ public record McpCompleteResult(
      * @param completion the value
      * @return this builder
      */
-    public Builder completion(ObjectNode completion) {
+    public Builder completion(Map<String, ?> completion) {
       this.completion = completion;
       return this;
     }

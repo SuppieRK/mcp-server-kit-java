@@ -1,6 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 
 /**
@@ -32,7 +31,6 @@ public record McpClientNotification(McpCancelledNotificationParams params)
    *
    * @return the constant value
    */
-  @JsonProperty("jsonrpc")
   public String jsonrpc() {
     return McpProtocol.JSON_RPC_VERSION;
   }
@@ -42,7 +40,6 @@ public record McpClientNotification(McpCancelledNotificationParams params)
    *
    * @return the constant value
    */
-  @JsonProperty("method")
   public String method() {
     return METHOD;
   }

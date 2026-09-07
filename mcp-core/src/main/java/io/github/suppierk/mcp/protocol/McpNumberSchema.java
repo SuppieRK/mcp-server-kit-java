@@ -1,6 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -16,7 +15,7 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpNumberSchema(
-    @JsonProperty("default") Optional<Double> defaultValue,
+    Optional<Double> defaultValue,
     Optional<String> description,
     Optional<Double> maximum,
     Optional<Double> minimum,

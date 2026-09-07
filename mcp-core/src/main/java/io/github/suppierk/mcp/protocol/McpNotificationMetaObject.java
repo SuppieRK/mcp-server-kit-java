@@ -1,7 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -12,12 +10,11 @@ import java.util.Optional;
  * @param subscriptionId the optional subscription identifier
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
-public record McpNotificationMetaObject(
-    @JsonProperty("io.modelcontextprotocol/subscriptionId") Optional<JsonNode> subscriptionId) {
+public record McpNotificationMetaObject(Optional<Object> subscriptionId) {
   /** Validates and copies the protocol fields. */
   public McpNotificationMetaObject {
     subscriptionId =
-        Objects.requireNonNull(subscriptionId, "subscriptionId").map(JsonNode::deepCopy);
+        Objects.requireNonNull(subscriptionId, "subscriptionId").map(McpProtocol::copy);
   }
 
   /**
@@ -26,8 +23,8 @@ public record McpNotificationMetaObject(
    * @return the subscription identifier
    */
   @Override
-  public Optional<JsonNode> subscriptionId() {
-    return subscriptionId.map(JsonNode::deepCopy);
+  public Optional<Object> subscriptionId() {
+    return subscriptionId.map(McpProtocol::copy);
   }
 
   /**
@@ -41,7 +38,7 @@ public record McpNotificationMetaObject(
 
   /** Builds {@link McpNotificationMetaObject} values. */
   public static final class Builder {
-    private Optional<JsonNode> subscriptionId = Optional.empty();
+    private Optional<Object> subscriptionId = Optional.empty();
 
     private Builder() {}
 
@@ -51,7 +48,7 @@ public record McpNotificationMetaObject(
      * @param subscriptionId the optional value
      * @return this builder
      */
-    public Builder subscriptionId(Optional<JsonNode> subscriptionId) {
+    public Builder subscriptionId(Optional<Object> subscriptionId) {
       this.subscriptionId = subscriptionId;
       return this;
     }
@@ -62,7 +59,7 @@ public record McpNotificationMetaObject(
      * @param subscriptionId the value, or {@code null} to clear it
      * @return this builder
      */
-    public Builder subscriptionId(JsonNode subscriptionId) {
+    public Builder subscriptionId(Object subscriptionId) {
       return subscriptionId(Optional.ofNullable(subscriptionId));
     }
 

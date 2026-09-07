@@ -1,7 +1,6 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -17,7 +16,7 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpToolUseContent(
-    @JsonProperty("_meta") Optional<McpMetaObject> meta, String id, ObjectNode input, String name)
+    Optional<McpMetaObject> meta, String id, Map<String, ?> input, String name)
     implements McpSamplingMessageContentBlock {
 
   private static final String TYPE = "tool_use";
@@ -26,7 +25,7 @@ public record McpToolUseContent(
   public McpToolUseContent {
     Objects.requireNonNull(meta, "meta");
     Objects.requireNonNull(id, "id");
-    input = Objects.requireNonNull(input, "input").deepCopy();
+    input = McpProtocol.copy(Objects.requireNonNull(input, "input"));
     Objects.requireNonNull(name, "name");
   }
 
@@ -35,7 +34,7 @@ public record McpToolUseContent(
    *
    * @return the copied input
    */
-  public ObjectNode input() {
+  public Map<String, ?> input() {
     return McpProtocol.copy(input);
   }
 
@@ -44,7 +43,6 @@ public record McpToolUseContent(
    *
    * @return the constant value
    */
-  @JsonProperty("type")
   public String type() {
     return TYPE;
   }
@@ -62,7 +60,7 @@ public record McpToolUseContent(
   public static final class Builder {
     private Optional<McpMetaObject> meta = Optional.empty();
     private String id;
-    private ObjectNode input;
+    private Map<String, ?> input;
     private String name;
 
     private Builder() {}
@@ -105,7 +103,7 @@ public record McpToolUseContent(
      * @param input the value
      * @return this builder
      */
-    public Builder input(ObjectNode input) {
+    public Builder input(Map<String, ?> input) {
       this.input = input;
       return this;
     }

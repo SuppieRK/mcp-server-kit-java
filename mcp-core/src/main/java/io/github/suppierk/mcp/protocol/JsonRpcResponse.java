@@ -1,7 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.databind.JsonNode;
-
 /**
  * A successful or unsuccessful JSON-RPC response.
  *
@@ -15,5 +13,5 @@ public interface JsonRpcResponse extends JsonRpcMessage {
    *
    * @return the request identifier, or JSON null when it is not known
    */
-  JsonNode id();
+  Object id();
 }

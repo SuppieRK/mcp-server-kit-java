@@ -6,9 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.github.suppierk.mcp.JsonTestValues;
 import io.github.suppierk.mcp.protocol.JsonRpcMessage;
 import io.github.suppierk.mcp.protocol.JsonRpcNotification;
 import io.github.suppierk.mcp.protocol.JsonRpcRequest;
@@ -31,6 +31,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -83,7 +84,10 @@ class McpSubscriptionNotificationTest {
           server
               .handle(
                   McpEmptyContext.INSTANCE,
-                  new JsonRpcRequest(JSON.numberNode(id), "subscriptions/listen", params))
+                  new JsonRpcRequest(
+                      JsonTestValues.value(JSON.numberNode(id)),
+                      "subscriptions/listen",
+                      JsonTestValues.object(params)))
               .subscribe(
                   new Flow.Subscriber<JsonRpcMessage>() {
                     public void onSubscribe(Flow.Subscription value) {
@@ -122,7 +126,8 @@ class McpSubscriptionNotificationTest {
     try (var server =
         McpServerKit.builder("tools", "1", McpEmptyContext.class)
             .syncTool(
-                new McpTool("hello", JSON.objectNode().put("type", "object")),
+                new McpTool(
+                    "hello", JsonTestValues.object(JSON.objectNode().put("type", "object"))),
                 (applicationContext, parameters, handlerContext) ->
                     new McpCallToolResult(List.of(new McpTextContent("Hello, World!"))))
             .build()) {
@@ -246,8 +251,8 @@ class McpSubscriptionNotificationTest {
     subscriber.request(1);
     var terminal =
         assertInstanceOf(McpSubscriptionsListenResultResponse.class, subscriber.messages.get(1));
-    assertEquals(30, terminal.id().intValue());
-    assertEquals(30, terminal.result().meta().subscriptionId().intValue());
+    assertEquals(30, JsonTestValues.json(terminal.id()).intValue());
+    assertEquals(30, JsonTestValues.json(terminal.result().meta().subscriptionId()).intValue());
     assertEquals("complete", terminal.result().resultType());
     subscriber.completion.orTimeout(5, TimeUnit.SECONDS).join();
     assertThrows(IllegalStateException.class, () -> server.emit(toolChanged()));
@@ -357,7 +362,10 @@ class McpSubscriptionNotificationTest {
     server
         .handle(
             McpEmptyContext.INSTANCE,
-            new JsonRpcRequest(JSON.numberNode(id), "subscriptions/listen", params))
+            new JsonRpcRequest(
+                JsonTestValues.value(JSON.numberNode(id)),
+                "subscriptions/listen",
+                JsonTestValues.object(params)))
         .subscribe(subscriber);
     subscriber.request(1);
     assertInstanceOf(McpSubscriptionsAcknowledgedNotification.class, subscriber.messages.get(0));
@@ -379,16 +387,15 @@ class McpSubscriptionNotificationTest {
         .map(
             notification ->
                 notification.method().equals("notifications/resources/updated")
-                    ? notification.method() + ":" + notification.params().path("uri").textValue()
+                    ? notification.method() + ":" + notification.params().get("uri")
                     : notification.method())
         .toList();
   }
 
-  private static JsonNode subscriptionId(JsonRpcMessage message) {
-    return assertInstanceOf(JsonRpcNotification.class, message)
-        .params()
-        .path("_meta")
-        .path("io.modelcontextprotocol/subscriptionId");
+  private static Number subscriptionId(JsonRpcMessage message) {
+    return (Number)
+        ((Map<?, ?>) assertInstanceOf(JsonRpcNotification.class, message).params().get("_meta"))
+            .get("io.modelcontextprotocol/subscriptionId");
   }
 
   private static McpToolListChangedNotification toolChanged() {

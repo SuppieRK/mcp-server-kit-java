@@ -1,6 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -28,7 +27,6 @@ public record McpPromptListChangedNotification(Optional<McpNotificationParams> p
    *
    * @return the constant value
    */
-  @JsonProperty("jsonrpc")
   public String jsonrpc() {
     return McpProtocol.JSON_RPC_VERSION;
   }
@@ -38,7 +36,6 @@ public record McpPromptListChangedNotification(Optional<McpNotificationParams> p
    *
    * @return the constant value
    */
-  @JsonProperty("method")
   public String method() {
     return METHOD;
   }

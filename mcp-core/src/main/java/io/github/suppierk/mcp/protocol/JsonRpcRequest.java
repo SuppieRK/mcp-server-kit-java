@@ -1,8 +1,7 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.math.BigInteger;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -15,7 +14,7 @@ import java.util.Objects;
  *     object</a>
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
-public record JsonRpcRequest(JsonNode id, String method, ObjectNode params)
+public record JsonRpcRequest(Object id, String method, Map<String, ?> params)
     implements JsonRpcMessage {
   /**
    * Validates the request fields.
@@ -26,10 +25,16 @@ public record JsonRpcRequest(JsonNode id, String method, ObjectNode params)
    * @throws NullPointerException if a parameter is {@code null}
    */
   public JsonRpcRequest {
-    id = Objects.requireNonNull(id, "id").deepCopy();
+    id = McpProtocol.copy(Objects.requireNonNull(id, "id"));
     Objects.requireNonNull(method, "method");
-    params = Objects.requireNonNull(params, "params").deepCopy();
-    if ((!id.isTextual() && !id.isIntegralNumber()) || method.isBlank()) {
+    params = McpProtocol.copy(Objects.requireNonNull(params, "params"));
+    if (!(id instanceof String
+            || id instanceof Byte
+            || id instanceof Short
+            || id instanceof Integer
+            || id instanceof Long
+            || id instanceof BigInteger)
+        || method.isBlank()) {
       throw new IllegalArgumentException("A request needs a valid ID and method");
     }
   }
@@ -39,7 +44,6 @@ public record JsonRpcRequest(JsonNode id, String method, ObjectNode params)
    *
    * @return {@code 2.0}
    */
-  @JsonProperty("jsonrpc")
   public String jsonrpc() {
     return McpProtocol.JSON_RPC_VERSION;
   }
@@ -50,8 +54,8 @@ public record JsonRpcRequest(JsonNode id, String method, ObjectNode params)
    * @return the request identifier
    */
   @Override
-  public JsonNode id() {
-    return id.deepCopy();
+  public Object id() {
+    return McpProtocol.copy(id);
   }
 
   /**
@@ -60,8 +64,8 @@ public record JsonRpcRequest(JsonNode id, String method, ObjectNode params)
    * @return the request parameters
    */
   @Override
-  public ObjectNode params() {
-    return params.deepCopy();
+  public Map<String, ?> params() {
+    return McpProtocol.copy(params);
   }
 
   /**
@@ -75,9 +79,9 @@ public record JsonRpcRequest(JsonNode id, String method, ObjectNode params)
 
   /** Builds {@link JsonRpcRequest} values. */
   public static final class Builder {
-    private JsonNode id;
+    private Object id;
     private String method;
-    private ObjectNode params;
+    private Map<String, ?> params;
 
     private Builder() {}
 
@@ -87,7 +91,7 @@ public record JsonRpcRequest(JsonNode id, String method, ObjectNode params)
      * @param id the value
      * @return this builder
      */
-    public Builder id(JsonNode id) {
+    public Builder id(Object id) {
       this.id = id;
       return this;
     }
@@ -109,7 +113,7 @@ public record JsonRpcRequest(JsonNode id, String method, ObjectNode params)
      * @param params the value
      * @return this builder
      */
-    public Builder params(ObjectNode params) {
+    public Builder params(Map<String, ?> params) {
       this.params = params;
       return this;
     }

@@ -1,6 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -30,7 +29,6 @@ public record McpInputRequests(Map<String, McpInputRequest> values) {
    * @return the entries
    */
   @Override
-  @JsonValue
   public Map<String, McpInputRequest> values() {
     return values;
   }

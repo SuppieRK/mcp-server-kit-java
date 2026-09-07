@@ -1,6 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -15,8 +14,7 @@ import java.util.Optional;
  *     the absent field as {@code "complete"}.
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
-public record McpResult(
-    @JsonProperty("_meta") Optional<McpResultMetaObject> meta, String resultType)
+public record McpResult(Optional<McpResultMetaObject> meta, String resultType)
     implements McpServerResult {
   /** Validates and copies the protocol fields. */
   public McpResult {

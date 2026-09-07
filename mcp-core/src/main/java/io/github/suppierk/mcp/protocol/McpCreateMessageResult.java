@@ -1,7 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -20,8 +18,8 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpCreateMessageResult(
-    @JsonProperty("_meta") Optional<McpMetaObject> meta,
-    JsonNode content,
+    Optional<McpMetaObject> meta,
+    Object content,
     String model,
     McpRole role,
     Optional<String> stopReason)
@@ -29,7 +27,7 @@ public record McpCreateMessageResult(
   /** Validates and copies the protocol fields. */
   public McpCreateMessageResult {
     Objects.requireNonNull(meta, "meta");
-    content = Objects.requireNonNull(content, "content").deepCopy();
+    content = McpProtocol.copy(Objects.requireNonNull(content, "content"));
     Objects.requireNonNull(model, "model");
     Objects.requireNonNull(role, "role");
     Objects.requireNonNull(stopReason, "stopReason");
@@ -40,7 +38,7 @@ public record McpCreateMessageResult(
    *
    * @return the copied content
    */
-  public JsonNode content() {
+  public Object content() {
     return McpProtocol.copy(content);
   }
 
@@ -56,7 +54,7 @@ public record McpCreateMessageResult(
   /** Builds {@link McpCreateMessageResult} values. */
   public static final class Builder {
     private Optional<McpMetaObject> meta = Optional.empty();
-    private JsonNode content;
+    private Object content;
     private String model;
     private McpRole role;
     private Optional<String> stopReason = Optional.empty();
@@ -90,7 +88,7 @@ public record McpCreateMessageResult(
      * @param content the value
      * @return this builder
      */
-    public Builder content(JsonNode content) {
+    public Builder content(Object content) {
       this.content = content;
       return this;
     }

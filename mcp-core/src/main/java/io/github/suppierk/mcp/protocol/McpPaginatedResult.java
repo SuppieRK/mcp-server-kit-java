@@ -1,6 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -18,9 +17,7 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpPaginatedResult(
-    @JsonProperty("_meta") Optional<McpResultMetaObject> meta,
-    Optional<String> nextCursor,
-    String resultType) {
+    Optional<McpResultMetaObject> meta, Optional<String> nextCursor, String resultType) {
   /** Validates and copies the protocol fields. */
   public McpPaginatedResult {
     Objects.requireNonNull(meta, "meta");

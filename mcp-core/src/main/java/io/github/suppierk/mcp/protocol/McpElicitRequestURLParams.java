@@ -1,6 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.net.URI;
 import java.util.Objects;
 
@@ -26,7 +25,6 @@ public record McpElicitRequestURLParams(String message, URI url) implements McpE
    *
    * @return the constant value
    */
-  @JsonProperty("mode")
   public String mode() {
     return MODE;
   }

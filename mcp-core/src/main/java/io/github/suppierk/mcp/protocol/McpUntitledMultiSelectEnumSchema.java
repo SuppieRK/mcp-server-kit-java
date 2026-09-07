@@ -1,8 +1,7 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -18,9 +17,9 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpUntitledMultiSelectEnumSchema(
-    @JsonProperty("default") Optional<List<String>> defaultValue,
+    Optional<List<String>> defaultValue,
     Optional<String> description,
-    ObjectNode items,
+    Map<String, ?> items,
     Optional<Long> maxItems,
     Optional<Long> minItems,
     Optional<String> title)
@@ -32,7 +31,7 @@ public record McpUntitledMultiSelectEnumSchema(
   public McpUntitledMultiSelectEnumSchema {
     defaultValue = Objects.requireNonNull(defaultValue, "defaultValue").map(List::copyOf);
     Objects.requireNonNull(description, "description");
-    items = Objects.requireNonNull(items, "items").deepCopy();
+    items = McpProtocol.copy(Objects.requireNonNull(items, "items"));
     Objects.requireNonNull(maxItems, "maxItems");
     Objects.requireNonNull(minItems, "minItems");
     Objects.requireNonNull(title, "title");
@@ -43,7 +42,7 @@ public record McpUntitledMultiSelectEnumSchema(
    *
    * @return the copied item schema
    */
-  public ObjectNode items() {
+  public Map<String, ?> items() {
     return McpProtocol.copy(items);
   }
 
@@ -52,7 +51,6 @@ public record McpUntitledMultiSelectEnumSchema(
    *
    * @return the constant value
    */
-  @JsonProperty("type")
   public String type() {
     return TYPE;
   }
@@ -70,7 +68,7 @@ public record McpUntitledMultiSelectEnumSchema(
   public static final class Builder {
     private Optional<List<String>> defaultValue = Optional.empty();
     private Optional<String> description = Optional.empty();
-    private ObjectNode items;
+    private Map<String, ?> items;
     private Optional<Long> maxItems = Optional.empty();
     private Optional<Long> minItems = Optional.empty();
     private Optional<String> title = Optional.empty();
@@ -125,7 +123,7 @@ public record McpUntitledMultiSelectEnumSchema(
      * @param items the value
      * @return this builder
      */
-    public Builder items(ObjectNode items) {
+    public Builder items(Map<String, ?> items) {
       this.items = items;
       return this;
     }

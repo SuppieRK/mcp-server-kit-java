@@ -1,7 +1,6 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -16,8 +15,8 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpGetPromptRequestParams(
-    @JsonProperty("_meta") McpRequestMetaObject meta,
-    Optional<ObjectNode> arguments,
+    McpRequestMetaObject meta,
+    Optional<Map<String, ?>> arguments,
     Optional<McpInputResponses> inputResponses,
     String name,
     Optional<String> requestState)
@@ -36,7 +35,7 @@ public record McpGetPromptRequestParams(
    *
    * @return the copied arguments
    */
-  public Optional<ObjectNode> arguments() {
+  public Optional<Map<String, ?>> arguments() {
     return McpProtocol.copy(arguments);
   }
 
@@ -52,7 +51,7 @@ public record McpGetPromptRequestParams(
   /** Builds {@link McpGetPromptRequestParams} values. */
   public static final class Builder {
     private McpRequestMetaObject meta;
-    private Optional<ObjectNode> arguments = Optional.empty();
+    private Optional<Map<String, ?>> arguments = Optional.empty();
     private Optional<McpInputResponses> inputResponses = Optional.empty();
     private String name;
     private Optional<String> requestState = Optional.empty();
@@ -76,7 +75,7 @@ public record McpGetPromptRequestParams(
      * @param arguments the optional value
      * @return this builder
      */
-    public Builder arguments(Optional<ObjectNode> arguments) {
+    public Builder arguments(Optional<Map<String, ?>> arguments) {
       this.arguments = arguments;
       return this;
     }
@@ -87,7 +86,7 @@ public record McpGetPromptRequestParams(
      * @param arguments the value, or {@code null} to clear it
      * @return this builder
      */
-    public Builder arguments(ObjectNode arguments) {
+    public Builder arguments(Map<String, ?> arguments) {
       return arguments(Optional.ofNullable(arguments));
     }
 

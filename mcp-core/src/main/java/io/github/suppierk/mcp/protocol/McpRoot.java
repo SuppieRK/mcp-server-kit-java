@@ -1,6 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.net.URI;
 import java.util.Objects;
 import java.util.Optional;
@@ -13,8 +12,7 @@ import java.util.Optional;
  * @param uri the root URI; this protocol revision requires a {@code file://} URI
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
-public record McpRoot(
-    @JsonProperty("_meta") Optional<McpMetaObject> meta, Optional<String> name, URI uri) {
+public record McpRoot(Optional<McpMetaObject> meta, Optional<String> name, URI uri) {
   /** Validates and copies the protocol fields. */
   public McpRoot {
     Objects.requireNonNull(meta, "meta");

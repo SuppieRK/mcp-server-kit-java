@@ -1,7 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -14,12 +12,11 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpSubscriptionsListenResultMetaObject(
-    @JsonProperty("io.modelcontextprotocol/serverInfo") Optional<McpImplementation> serverInfo,
-    @JsonProperty("io.modelcontextprotocol/subscriptionId") JsonNode subscriptionId) {
+    Optional<McpImplementation> serverInfo, Object subscriptionId) {
   /** Validates and copies the protocol fields. */
   public McpSubscriptionsListenResultMetaObject {
     Objects.requireNonNull(serverInfo, "serverInfo");
-    subscriptionId = Objects.requireNonNull(subscriptionId, "subscriptionId").deepCopy();
+    subscriptionId = McpProtocol.copy(Objects.requireNonNull(subscriptionId, "subscriptionId"));
   }
 
   /**
@@ -27,7 +24,7 @@ public record McpSubscriptionsListenResultMetaObject(
    *
    * @return the copied identifier
    */
-  public JsonNode subscriptionId() {
+  public Object subscriptionId() {
     return McpProtocol.copy(subscriptionId);
   }
 
@@ -43,7 +40,7 @@ public record McpSubscriptionsListenResultMetaObject(
   /** Builds {@link McpSubscriptionsListenResultMetaObject} values. */
   public static final class Builder {
     private Optional<McpImplementation> serverInfo = Optional.empty();
-    private JsonNode subscriptionId;
+    private Object subscriptionId;
 
     private Builder() {}
 
@@ -74,7 +71,7 @@ public record McpSubscriptionsListenResultMetaObject(
      * @param subscriptionId the value
      * @return this builder
      */
-    public Builder subscriptionId(JsonNode subscriptionId) {
+    public Builder subscriptionId(Object subscriptionId) {
       this.subscriptionId = subscriptionId;
       return this;
     }

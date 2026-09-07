@@ -9,12 +9,19 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.github.suppierk.mcp.protocol.McpCallToolRequest;
 import io.github.suppierk.mcp.protocol.McpListToolsRequest;
 import io.github.suppierk.mcp.protocol.McpProtocol;
+import io.github.suppierk.mcp.server.McpEmptyContext;
+import io.github.suppierk.mcp.server.McpServerKit;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.function.Consumer;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -29,7 +36,7 @@ class SpringWebMvcExampleApplicationTest {
   void receivesASubscriptionAcknowledgementBeforeTheStreamCloses() {
     var params = JSON.createObjectNode();
     params.putObject("notifications").put("toolsListChanged", true);
-    var factory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
+    var factory = new SimpleClientHttpRequestFactory();
     factory.setReadTimeout(30_000);
     RestClient.builder()
         .baseUrl("http://localhost:" + port)
@@ -46,9 +53,7 @@ class SpringWebMvcExampleApplicationTest {
             (sent, response) -> {
               assertEquals(200, response.getStatusCode().value());
               assertEquals("text/event-stream", response.getHeaders().getContentType().toString());
-              var reader =
-                  new java.io.BufferedReader(
-                      new java.io.InputStreamReader(response.getBody(), UTF_8));
+              var reader = new BufferedReader(new InputStreamReader(response.getBody(), UTF_8));
               assertEquals("event: message", reader.readLine());
               var notification = JSON.readTree(reader.readLine().substring(6));
               assertEquals(
@@ -206,11 +211,8 @@ class SpringWebMvcExampleApplicationTest {
 
   private record EndpointResponse(int status, String body) {}
 
-  @org.junit.jupiter.api.AfterAll
-  static void closeOpenSubscriptions(
-      @org.springframework.beans.factory.annotation.Autowired
-          io.github.suppierk.mcp.server.McpServerKit<io.github.suppierk.mcp.server.McpEmptyContext>
-              serverKit) {
+  @AfterAll
+  static void closeOpenSubscriptions(@Autowired McpServerKit<McpEmptyContext> serverKit) {
     serverKit.close();
   }
 }

@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import io.github.suppierk.mcp.protocol.JsonRpcResultResponse;
 import io.github.suppierk.mcp.protocol.McpProtocol;
 import io.github.suppierk.mcp.server.McpEmptyContext;
@@ -14,6 +13,7 @@ import io.github.suppierk.mcp.server.McpServerKit;
 import io.github.suppierk.mcp.transport.http.StreamableHttpMcpTransport;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
@@ -101,8 +101,7 @@ class SpringWebMvcMcpAdapterTest {
                 (applicationContext, call, handlerContext) -> {
                   seen.set(applicationContext);
                   return new JsonRpcResultResponse(
-                      call.id(),
-                      JsonNodeFactory.instance.objectNode().put("value", applicationContext.value));
+                      call.id(), Map.of("value", applicationContext.value));
                 })
             .build();
     var contextAdapter = new SpringWebMvcMcpAdapter<>(serverKit);

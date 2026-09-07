@@ -21,12 +21,20 @@ import io.github.suppierk.mcp.protocol.McpTextContent;
 import io.github.suppierk.mcp.protocol.McpTextResourceContents;
 import io.github.suppierk.mcp.protocol.McpTool;
 import io.github.suppierk.mcp.server.McpEmptyContext;
+import io.github.suppierk.mcp.server.McpHandlerContext;
 import io.github.suppierk.mcp.server.McpServerKit;
+import java.lang.reflect.RecordComponent;
+import java.math.BigDecimal;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -35,7 +43,10 @@ import java.util.concurrent.Flow;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 class StreamableHttpMcpTransportTest {
   private final ObjectMapper mapper = new ObjectMapper();
@@ -61,10 +72,7 @@ class StreamableHttpMcpTransportTest {
       first.cancel(false);
       assertTrue(firstResult.isCancelled());
       assertFalse(secondResult.isCancelled());
-      secondResult.complete(
-          new JsonRpcResultResponse(
-              mapper.getNodeFactory().numberNode(1),
-              mapper.createObjectNode().put("value", "second")));
+      secondResult.complete(new JsonRpcResultResponse(1, Map.of("value", "second")));
       var response = assertInstanceOf(HttpJsonResponse.class, second.get(5, TimeUnit.SECONDS));
       assertEquals(1, mapper.readTree(response.body()).path("id").intValue());
       assertEquals(
@@ -75,7 +83,7 @@ class StreamableHttpMcpTransportTest {
   @Test
   void cancellingAFiniteHttpResponseCancelsItsApplicationHandler() throws Exception {
     var applicationFuture = new CompletableFuture<JsonRpcResultResponse>();
-    var context = new AtomicReference<io.github.suppierk.mcp.server.McpHandlerContext>();
+    var context = new AtomicReference<McpHandlerContext>();
     try (var server =
         McpServerKit.builder("cancellation", "1", McpEmptyContext.class)
             .asyncMethod(
@@ -143,7 +151,7 @@ class StreamableHttpMcpTransportTest {
             .syncMethod(
                 "work",
                 (applicationContext, call, handlerContext) ->
-                    new JsonRpcResultResponse(call.id(), mapper.createObjectNode()))
+                    new JsonRpcResultResponse(call.id(), Map.of()))
             .build();
     var transport = new StreamableHttpMcpTransport<>(server);
 
@@ -189,6 +197,25 @@ class StreamableHttpMcpTransportTest {
     assertEquals(400, response(transport, withoutMetadata(valid)).status());
     assertEquals(
         404, response(transport, request("missing", "application/json", Map.of())).status());
+  }
+
+  @Test
+  void returnsProtocolErrorForAnOutOfRangeErrorCode() throws Exception {
+    try (var server = McpServerKit.builder("http-test", "1", McpEmptyContext.class).build()) {
+      var transport = new StreamableHttpMcpTransport<>(server);
+      var envelope = request("server/discover", "application/json", Map.of());
+      String body =
+          "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":2147483648,\"message\":\"failed\"}}";
+
+      var failure =
+          response(
+              transport,
+              new HttpMcpRequest(
+                  "POST", envelope.headers(), body.getBytes(StandardCharsets.UTF_8)));
+
+      assertEquals(400, failure.status());
+      assertEquals(-32600, mapper.readTree(failure.body()).path("error").path("code").intValue());
+    }
   }
 
   @Test
@@ -282,12 +309,10 @@ class StreamableHttpMcpTransportTest {
             new StreamableHttpMcpTransport<>(
                 server, Set.of(URI.create("https://example.com/path"))));
     assertEquals(
-        Set.of(
-            java.util.List.of(McpServerKit.class),
-            java.util.List.of(McpServerKit.class, Set.class)),
-        java.util.Arrays.stream(StreamableHttpMcpTransport.class.getConstructors())
-            .map(constructor -> java.util.List.of(constructor.getParameterTypes()))
-            .collect(java.util.stream.Collectors.toSet()));
+        Set.of(List.of(McpServerKit.class), List.of(McpServerKit.class, Set.class)),
+        Arrays.stream(StreamableHttpMcpTransport.class.getConstructors())
+            .map(constructor -> List.of(constructor.getParameterTypes()))
+            .collect(Collectors.toSet()));
   }
 
   @Test
@@ -366,18 +391,96 @@ class StreamableHttpMcpTransportTest {
             .status());
   }
 
+  @ParameterizedTest
+  @CsvSource({
+    "number, 100.0, 100.0, 200",
+    "number, 100.0, 1E+2, 200",
+    "number, 1e2, 100.00, 200",
+    "integer, 100, 100.0, 200",
+    "number, -0.0, 0, 200",
+    "number, 1e1000, 10e999, 200",
+    "number, 1e-1000, 10e-1001, 200",
+    "integer, 9007199254740993, 9007199254740993, 200",
+    "number, 0.123456789012345678901, 0.1234567890123456789010, 200",
+    "number, 100.0, =?base64?MTAwLjA=?=, 200",
+    "number, 100.0, 101, 400",
+    "number, 100.0, 100.000000000000000001, 400",
+    "integer, 9007199254740993, 9007199254740992, 400",
+    "number, 1e-1000, 0, 400",
+    "number, 100.0, NaN, 400",
+    "number, 100.0, Infinity, 400",
+    "number, 100.0, not-a-number, 400",
+    "number, 100.0, +100, 400",
+    "number, 100.0, 0100, 400",
+    "number, 100.0, 100., 400",
+    "number, 0.1, .1, 400",
+    "number, 100.0, 1e2147483648, 400",
+    "number, 100.0, =?base64?!!!?=, 400",
+    "number, 100.0, '', 400",
+    "string, 100.0, 100.0, 200",
+    "string, 100.0, 1E+2, 400",
+    "boolean, true, true, 200",
+    "boolean, true, TRUE, 400"
+  })
+  void comparesPrimitiveHeaderMirrorsWithoutLosingNumericPrecision(
+      String type, String bodyValue, String headerValue, int expectedStatus) throws Exception {
+    var schema =
+        Map.of(
+            "type",
+            "object",
+            "properties",
+            Map.of("value", Map.of("type", type, "x-mcp-header", "Value")));
+    var invoked = new AtomicBoolean();
+    try (var server =
+        McpServerKit.builder("numeric-headers", "1", McpEmptyContext.class)
+            .syncTool(
+                new McpTool("echo", schema),
+                (applicationContext, parameters, handlerContext) -> {
+                  invoked.set(true);
+                  return new McpCallToolResult(List.of(new McpTextContent("called")));
+                })
+            .build()) {
+      var transport = new StreamableHttpMcpTransport<>(server);
+      ObjectNode call = mapper.createObjectNode().put("name", "echo");
+      ObjectNode arguments = call.putObject("arguments");
+      switch (type) {
+        case "string" -> arguments.put("value", bodyValue);
+        case "boolean" -> arguments.put("value", Boolean.parseBoolean(bodyValue));
+        default -> arguments.put("value", new BigDecimal(bodyValue));
+      }
+
+      var result =
+          response(
+              transport,
+              request(
+                  "tools/call",
+                  "application/json",
+                  Map.of("Mcp-Name", "echo", "Mcp-Param-Value", headerValue),
+                  call));
+
+      assertEquals(expectedStatus, result.status());
+      assertEquals(expectedStatus == 200, invoked.get());
+      if (expectedStatus == 400) {
+        assertEquals(-32020, mapper.readTree(result.body()).path("error").path("code").intValue());
+      }
+    }
+  }
+
   @Test
   void validatesEveryDeclaredToolHeaderBeforeApplicationDispatch() throws Exception {
-    ObjectNode schema = mapper.createObjectNode().put("type", "object");
-    ObjectNode properties = schema.putObject("properties");
-    properties.putObject("region").put("type", "string").put("x-mcp-header", "Region");
-    properties
-        .putObject("routing")
-        .put("type", "object")
-        .putObject("properties")
-        .putObject("tenant")
-        .put("type", "string")
-        .put("x-mcp-header", "Tenant");
+    var schema =
+        Map.of(
+            "type",
+            "object",
+            "properties",
+            Map.of(
+                "region", Map.of("type", "string", "x-mcp-header", "Region"),
+                "routing",
+                    Map.of(
+                        "type",
+                        "object",
+                        "properties",
+                        Map.of("tenant", Map.of("type", "string", "x-mcp-header", "Tenant")))));
     var invoked = new AtomicBoolean();
     var server =
         McpServerKit.builder("headers", "1", McpEmptyContext.class)
@@ -385,7 +488,7 @@ class StreamableHttpMcpTransportTest {
                 new McpTool("route", schema),
                 (applicationContext, parameters, handlerContext) -> {
                   invoked.set(true);
-                  return new McpCallToolResult(java.util.List.of(new McpTextContent("called")));
+                  return new McpCallToolResult(List.of(new McpTextContent("called")));
                 })
             .build();
     var transport = new StreamableHttpMcpTransport<>(server);
@@ -436,7 +539,7 @@ class StreamableHttpMcpTransportTest {
                     call))
             .status());
     assertFalse(invoked.get());
-    var headersWithUnknown = new java.util.HashMap<>(validHeaders);
+    var headersWithUnknown = new HashMap<>(validHeaders);
     headersWithUnknown.put("Mcp-Param-Unrecognized", "forwarded");
     assertEquals(
         200,
@@ -447,12 +550,12 @@ class StreamableHttpMcpTransportTest {
 
   @Test
   void decodesTheExactBase64SentinelBeforeComparingMirroredValues() throws Exception {
-    ObjectNode schema = mapper.createObjectNode().put("type", "object");
-    schema
-        .putObject("properties")
-        .putObject("greeting")
-        .put("type", "string")
-        .put("x-mcp-header", "Greeting");
+    var schema =
+        Map.of(
+            "type",
+            "object",
+            "properties",
+            Map.of("greeting", Map.of("type", "string", "x-mcp-header", "Greeting")));
     var invoked = new AtomicBoolean();
     var server =
         McpServerKit.builder("encoding", "1", McpEmptyContext.class)
@@ -460,7 +563,7 @@ class StreamableHttpMcpTransportTest {
                 new McpTool("écho", schema),
                 (applicationContext, parameters, handlerContext) -> {
                   invoked.set(true);
-                  return new McpCallToolResult(java.util.List.of(new McpTextContent("called")));
+                  return new McpCallToolResult(List.of(new McpTextContent("called")));
                 })
             .build();
     var transport = new StreamableHttpMcpTransport<>(server);
@@ -509,7 +612,7 @@ class StreamableHttpMcpTransportTest {
                 (applicationContext, call, handlerContext) -> {
                   seen.set(applicationContext);
                   return new JsonRpcResultResponse(
-                      call.id(), mapper.createObjectNode().put("value", applicationContext.value));
+                      call.id(), Map.of("value", applicationContext.value));
                 })
             .build();
     var transport = new StreamableHttpMcpTransport<>(serverKit);
@@ -520,9 +623,9 @@ class StreamableHttpMcpTransportTest {
     assertSame(applicationContext, seen.get());
     assertThrows(NullPointerException.class, () -> transport.handle(null, request));
     assertEquals(
-        java.util.List.of("method", "headers", "body"),
-        java.util.Arrays.stream(HttpMcpRequest.class.getRecordComponents())
-            .map(java.lang.reflect.RecordComponent::getName)
+        List.of("method", "headers", "body"),
+        Arrays.stream(HttpMcpRequest.class.getRecordComponents())
+            .map(RecordComponent::getName)
             .toList());
   }
 
@@ -534,7 +637,7 @@ class StreamableHttpMcpTransportTest {
                 new McpResource(URI.create("test://live"), "live"),
                 (applicationContext, call, handlerContext) ->
                     new McpReadResourceResult(
-                        java.util.List.of(new McpTextResourceContents(call.uri(), "live"))))
+                        List.of(new McpTextResourceContents(call.uri(), "live"))))
             .build();
     ObjectNode extra = mapper.createObjectNode();
     extra.putObject("notifications").putArray("resourceSubscriptions").add("test://live");
@@ -554,8 +657,7 @@ class StreamableHttpMcpTransportTest {
     assertTrue(subscriber.first.await(5, TimeUnit.SECONDS));
     server.emit(
         new McpResourceUpdatedNotification(
-            new McpResourceUpdatedNotificationParams(
-                java.util.Optional.empty(), URI.create("test://live"))));
+            new McpResourceUpdatedNotificationParams(Optional.empty(), URI.create("test://live"))));
     assertTrue(
         subscriber.second.await(5, TimeUnit.SECONDS),
         () -> "frames=" + subscriber.frames + ", failure=" + subscriber.failure.get());
@@ -581,18 +683,18 @@ class StreamableHttpMcpTransportTest {
         .putObject("_meta")
         .put(McpProtocol.PROTOCOL_VERSION_KEY, McpProtocol.REVISION)
         .putObject(McpProtocol.CLIENT_CAPABILITIES_KEY);
-    java.util.HashMap<String, java.util.List<String>> headers =
-        new java.util.HashMap<>(
+    HashMap<String, List<String>> headers =
+        new HashMap<>(
             Map.of(
                 "Content-Type",
-                java.util.List.of("application/json"),
+                List.of("application/json"),
                 "Accept",
-                java.util.List.of(accept),
+                List.of(accept),
                 "MCP-Protocol-Version",
-                java.util.List.of(McpProtocol.REVISION),
+                List.of(McpProtocol.REVISION),
                 "Mcp-Method",
-                java.util.List.of(method)));
-    extraHeaders.forEach((name, value) -> headers.put(name, java.util.List.of(value)));
+                List.of(method)));
+    extraHeaders.forEach((name, value) -> headers.put(name, List.of(value)));
     return new HttpMcpRequest("POST", headers, mapper.writeValueAsBytes(body));
   }
 
@@ -603,10 +705,10 @@ class StreamableHttpMcpTransportTest {
     return new HttpMcpRequest(
         "POST",
         Map.of(
-            "Content-Type", java.util.List.of("application/json"),
-            "Accept", java.util.List.of(accept),
-            "MCP-Protocol-Version", java.util.List.of(McpProtocol.REVISION),
-            "Mcp-Method", java.util.List.of(mirroredMethod)),
+            "Content-Type", List.of("application/json"),
+            "Accept", List.of(accept),
+            "MCP-Protocol-Version", List.of(McpProtocol.REVISION),
+            "Mcp-Method", List.of(mirroredMethod)),
         mapper.writeValueAsBytes(body));
   }
 
@@ -625,24 +727,21 @@ class StreamableHttpMcpTransportTest {
   }
 
   private static HttpMcpRequest withHeader(HttpMcpRequest request, String name, String value) {
-    java.util.HashMap<String, java.util.List<String>> headers =
-        new java.util.HashMap<>(request.headers());
+    HashMap<String, List<String>> headers = new HashMap<>(request.headers());
     headers.keySet().removeIf(key -> key.equalsIgnoreCase(name));
-    headers.put(name, java.util.List.of(value));
+    headers.put(name, List.of(value));
     return new HttpMcpRequest(request.method(), headers, request.body());
   }
 
   private static HttpMcpRequest withAdditionalHeader(
       HttpMcpRequest request, String name, String value) {
-    java.util.LinkedHashMap<String, java.util.List<String>> headers =
-        new java.util.LinkedHashMap<>(request.headers());
-    headers.put(name, java.util.List.of(value));
+    LinkedHashMap<String, List<String>> headers = new LinkedHashMap<>(request.headers());
+    headers.put(name, List.of(value));
     return new HttpMcpRequest(request.method(), headers, request.body());
   }
 
   private static HttpMcpRequest withoutHeader(HttpMcpRequest request, String name) {
-    java.util.HashMap<String, java.util.List<String>> headers =
-        new java.util.HashMap<>(request.headers());
+    HashMap<String, List<String>> headers = new HashMap<>(request.headers());
     headers.keySet().removeIf(key -> key.equalsIgnoreCase(name));
     return new HttpMcpRequest(request.method(), headers, request.body());
   }

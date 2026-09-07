@@ -1,7 +1,6 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -13,7 +12,7 @@ import java.util.Objects;
  *     without nesting.
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
-public record McpElicitRequestFormParams(String message, ObjectNode requestedSchema)
+public record McpElicitRequestFormParams(String message, Map<String, ?> requestedSchema)
     implements McpElicitRequestParams {
 
   private static final String MODE = "form";
@@ -21,7 +20,7 @@ public record McpElicitRequestFormParams(String message, ObjectNode requestedSch
   /** Validates and copies the protocol fields. */
   public McpElicitRequestFormParams {
     Objects.requireNonNull(message, "message");
-    requestedSchema = Objects.requireNonNull(requestedSchema, "requestedSchema").deepCopy();
+    requestedSchema = McpProtocol.copy(Objects.requireNonNull(requestedSchema, "requestedSchema"));
   }
 
   /**
@@ -29,7 +28,7 @@ public record McpElicitRequestFormParams(String message, ObjectNode requestedSch
    *
    * @return the copied schema
    */
-  public ObjectNode requestedSchema() {
+  public Map<String, ?> requestedSchema() {
     return McpProtocol.copy(requestedSchema);
   }
 
@@ -38,7 +37,6 @@ public record McpElicitRequestFormParams(String message, ObjectNode requestedSch
    *
    * @return the constant value
    */
-  @JsonProperty("mode")
   public String mode() {
     return MODE;
   }
@@ -55,7 +53,7 @@ public record McpElicitRequestFormParams(String message, ObjectNode requestedSch
   /** Builds {@link McpElicitRequestFormParams} values. */
   public static final class Builder {
     private String message;
-    private ObjectNode requestedSchema;
+    private Map<String, ?> requestedSchema;
 
     private Builder() {}
 
@@ -76,7 +74,7 @@ public record McpElicitRequestFormParams(String message, ObjectNode requestedSch
      * @param requestedSchema the value
      * @return this builder
      */
-    public Builder requestedSchema(ObjectNode requestedSchema) {
+    public Builder requestedSchema(Map<String, ?> requestedSchema) {
       this.requestedSchema = requestedSchema;
       return this;
     }

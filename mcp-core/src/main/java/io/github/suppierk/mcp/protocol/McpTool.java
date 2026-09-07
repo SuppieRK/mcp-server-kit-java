@@ -1,8 +1,7 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -21,13 +20,13 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpTool(
-    @JsonProperty("_meta") Optional<McpMetaObject> meta,
+    Optional<McpMetaObject> meta,
     Optional<McpToolAnnotations> annotations,
     Optional<String> description,
     Optional<List<McpIcon>> icons,
-    ObjectNode inputSchema,
+    Map<String, ?> inputSchema,
     String name,
-    Optional<ObjectNode> outputSchema,
+    Optional<Map<String, ?>> outputSchema,
     Optional<String> title)
     implements McpBaseMetadata {
   /** Validates and copies the protocol fields. */
@@ -36,14 +35,14 @@ public record McpTool(
     Objects.requireNonNull(annotations, "annotations");
     Objects.requireNonNull(description, "description");
     icons = Objects.requireNonNull(icons, "icons").map(List::copyOf);
-    inputSchema = Objects.requireNonNull(inputSchema, "inputSchema").deepCopy();
-    if (!"object".equals(inputSchema.path("type").textValue())) {
+    inputSchema = McpProtocol.copy(Objects.requireNonNull(inputSchema, "inputSchema"));
+    if (!"object".equals(inputSchema.get("type"))) {
       throw new IllegalArgumentException("A tool input schema must have object type");
     }
     if (Objects.requireNonNull(name, "name").isBlank()) {
       throw new IllegalArgumentException("A tool name must not be blank");
     }
-    outputSchema = Objects.requireNonNull(outputSchema, "outputSchema").map(ObjectNode::deepCopy);
+    outputSchema = Objects.requireNonNull(outputSchema, "outputSchema").map(McpProtocol::copy);
     Objects.requireNonNull(title, "title");
   }
 
@@ -53,7 +52,7 @@ public record McpTool(
    * @param name the tool name
    * @param inputSchema the input schema
    */
-  public McpTool(String name, ObjectNode inputSchema) {
+  public McpTool(String name, Map<String, ?> inputSchema) {
     this(
         Optional.empty(),
         Optional.empty(),
@@ -71,8 +70,8 @@ public record McpTool(
    * @return the input schema
    */
   @Override
-  public ObjectNode inputSchema() {
-    return inputSchema.deepCopy();
+  public Map<String, ?> inputSchema() {
+    return McpProtocol.copy(inputSchema);
   }
 
   /**
@@ -81,8 +80,8 @@ public record McpTool(
    * @return the output schema
    */
   @Override
-  public Optional<ObjectNode> outputSchema() {
-    return outputSchema.map(ObjectNode::deepCopy);
+  public Optional<Map<String, ?>> outputSchema() {
+    return outputSchema.map(McpProtocol::copy);
   }
 
   /**
@@ -100,9 +99,9 @@ public record McpTool(
     private Optional<McpToolAnnotations> annotations = Optional.empty();
     private Optional<String> description = Optional.empty();
     private Optional<List<McpIcon>> icons = Optional.empty();
-    private ObjectNode inputSchema;
+    private Map<String, ?> inputSchema;
     private String name;
-    private Optional<ObjectNode> outputSchema = Optional.empty();
+    private Optional<Map<String, ?>> outputSchema = Optional.empty();
     private Optional<String> title = Optional.empty();
 
     private Builder() {}
@@ -197,7 +196,7 @@ public record McpTool(
      * @param inputSchema the value
      * @return this builder
      */
-    public Builder inputSchema(ObjectNode inputSchema) {
+    public Builder inputSchema(Map<String, ?> inputSchema) {
       this.inputSchema = inputSchema;
       return this;
     }
@@ -219,7 +218,7 @@ public record McpTool(
      * @param outputSchema the optional value
      * @return this builder
      */
-    public Builder outputSchema(Optional<ObjectNode> outputSchema) {
+    public Builder outputSchema(Optional<Map<String, ?>> outputSchema) {
       this.outputSchema = outputSchema;
       return this;
     }
@@ -230,7 +229,7 @@ public record McpTool(
      * @param outputSchema the value, or {@code null} to clear it
      * @return this builder
      */
-    public Builder outputSchema(ObjectNode outputSchema) {
+    public Builder outputSchema(Map<String, ?> outputSchema) {
       return outputSchema(Optional.ofNullable(outputSchema));
     }
 

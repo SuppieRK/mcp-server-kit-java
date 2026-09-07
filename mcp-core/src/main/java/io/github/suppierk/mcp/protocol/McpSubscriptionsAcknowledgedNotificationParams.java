@@ -1,6 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -16,8 +15,7 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpSubscriptionsAcknowledgedNotificationParams(
-    @JsonProperty("_meta") Optional<McpNotificationMetaObject> meta,
-    McpSubscriptionFilter notifications) {
+    Optional<McpNotificationMetaObject> meta, McpSubscriptionFilter notifications) {
   /** Validates and copies the protocol fields. */
   public McpSubscriptionsAcknowledgedNotificationParams {
     Objects.requireNonNull(meta, "meta");

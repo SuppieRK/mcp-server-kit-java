@@ -1,6 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 
 /**
@@ -19,8 +18,7 @@ import java.util.Objects;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpSubscriptionsListenResult(
-    @JsonProperty("_meta") McpSubscriptionsListenResultMetaObject meta, String resultType)
-    implements McpServerResult {
+    McpSubscriptionsListenResultMetaObject meta, String resultType) implements McpServerResult {
   /** Validates and copies the protocol fields. */
   public McpSubscriptionsListenResult {
     Objects.requireNonNull(meta, "meta");

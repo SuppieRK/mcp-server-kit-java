@@ -1,7 +1,6 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -12,7 +11,7 @@ import java.util.Objects;
  * @see <a href="https://www.jsonrpc.org/specification#notification">JSON-RPC 2.0 notification</a>
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
-public record JsonRpcNotification(String method, ObjectNode params) implements JsonRpcMessage {
+public record JsonRpcNotification(String method, Map<String, ?> params) implements JsonRpcMessage {
   /**
    * Validates the notification fields.
    *
@@ -22,7 +21,7 @@ public record JsonRpcNotification(String method, ObjectNode params) implements J
    */
   public JsonRpcNotification {
     Objects.requireNonNull(method, "method");
-    params = Objects.requireNonNull(params, "params").deepCopy();
+    params = McpProtocol.copyObject(params);
     if (method.isBlank()) {
       throw new IllegalArgumentException("A notification needs a method");
     }
@@ -33,19 +32,18 @@ public record JsonRpcNotification(String method, ObjectNode params) implements J
    *
    * @return {@code 2.0}
    */
-  @JsonProperty("jsonrpc")
   public String jsonrpc() {
     return McpProtocol.JSON_RPC_VERSION;
   }
 
   /**
-   * Returns a copy of the notification parameters.
+   * Returns the deeply immutable notification parameters.
    *
    * @return the notification parameters
    */
   @Override
-  public ObjectNode params() {
-    return params.deepCopy();
+  public Map<String, ?> params() {
+    return params;
   }
 
   /**
@@ -60,7 +58,7 @@ public record JsonRpcNotification(String method, ObjectNode params) implements J
   /** Builds {@link JsonRpcNotification} values. */
   public static final class Builder {
     private String method;
-    private ObjectNode params;
+    private Map<String, ?> params;
 
     private Builder() {}
 
@@ -81,7 +79,7 @@ public record JsonRpcNotification(String method, ObjectNode params) implements J
      * @param params the value
      * @return this builder
      */
-    public Builder params(ObjectNode params) {
+    public Builder params(Map<String, ?> params) {
       this.params = params;
       return this;
     }

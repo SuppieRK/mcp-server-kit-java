@@ -5,10 +5,15 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Flow;
 import java.util.concurrent.FutureTask;
@@ -20,16 +25,16 @@ class HttpEventStreamResponseTest {
   void flushesAnEventBeforeTheSourceCompletes() throws Exception {
     var source = new OpenFramePublisher("event: message\ndata: {}\n\n");
     var response = new HttpEventStreamResponse(source);
-    var received = new java.util.concurrent.CompletableFuture<String>();
+    var received = new CompletableFuture<String>();
     var destination =
         new ByteArrayOutputStream() {
           @Override
           public synchronized void write(byte[] bytes, int offset, int count) {
             super.write(bytes, offset, count);
-            received.complete(toString(java.nio.charset.StandardCharsets.UTF_8));
+            received.complete(toString(StandardCharsets.UTF_8));
           }
         };
-    var buffered = new java.io.BufferedOutputStream(destination);
+    var buffered = new BufferedOutputStream(destination);
     var write =
         new FutureTask<Void>(
             () -> {
@@ -86,7 +91,7 @@ class HttpEventStreamResponseTest {
 
     response.writeTo(output);
 
-    assertEquals("firstsecond", output.toString(java.nio.charset.StandardCharsets.UTF_8));
+    assertEquals("firstsecond", output.toString(StandardCharsets.UTF_8));
     assertEquals(List.of(1L, 1L, 1L), source.requests);
   }
 
@@ -115,7 +120,7 @@ class HttpEventStreamResponseTest {
 
     ExecutionException failure =
         assertThrows(ExecutionException.class, () -> read.get(1, TimeUnit.SECONDS));
-    assertInstanceOf(java.io.IOException.class, failure.getCause());
+    assertInstanceOf(IOException.class, failure.getCause());
     assertTrue(source.cancelled);
   }
 
@@ -128,7 +133,7 @@ class HttpEventStreamResponseTest {
 
     source.fail(sourceFailure);
 
-    java.io.IOException failure = assertThrows(java.io.IOException.class, input::read);
+    IOException failure = assertThrows(IOException.class, input::read);
     assertEquals(sourceFailure, failure.getCause());
   }
 
@@ -137,15 +142,14 @@ class HttpEventStreamResponseTest {
     var source = new OpenFramePublisher("frame");
     var response = new HttpEventStreamResponse(source);
     var output =
-        new java.io.OutputStream() {
+        new OutputStream() {
           @Override
-          public void write(int value) throws java.io.IOException {
-            throw new java.io.IOException("closed");
+          public void write(int value) throws IOException {
+            throw new IOException("closed");
           }
         };
 
-    java.io.IOException failure =
-        assertThrows(java.io.IOException.class, () -> response.writeTo(output));
+    IOException failure = assertThrows(IOException.class, () -> response.writeTo(output));
 
     assertEquals("closed", failure.getMessage());
     assertTrue(source.cancelled);
@@ -223,9 +227,8 @@ class HttpEventStreamResponseTest {
                 });
     var response = new HttpEventStreamResponse(source);
 
-    java.io.IOException failure =
-        assertThrows(
-            java.io.IOException.class, () -> response.writeTo(new ByteArrayOutputStream()));
+    IOException failure =
+        assertThrows(IOException.class, () -> response.writeTo(new ByteArrayOutputStream()));
 
     assertEquals(sourceFailure, failure.getCause());
   }
@@ -240,7 +243,7 @@ class HttpEventStreamResponseTest {
               try {
                 input.read();
                 return false;
-              } catch (java.io.IOException exception) {
+              } catch (IOException exception) {
                 return Thread.currentThread().isInterrupted();
               }
             });
@@ -259,7 +262,7 @@ class HttpEventStreamResponseTest {
               try {
                 outputResponse.writeTo(new ByteArrayOutputStream());
                 return false;
-              } catch (java.io.IOException exception) {
+              } catch (IOException exception) {
                 return Thread.currentThread().isInterrupted();
               }
             });
@@ -279,7 +282,7 @@ class HttpEventStreamResponseTest {
     input.close();
 
     assertTrue(source.cancelled);
-    assertThrows(java.io.IOException.class, input::read);
+    assertThrows(IOException.class, input::read);
   }
 
   @Test
@@ -374,7 +377,7 @@ class HttpEventStreamResponseTest {
     public void onNext(ByteBuffer item) {
       byte[] bytes = new byte[item.remaining()];
       item.get(bytes);
-      items.add(new String(bytes, java.nio.charset.StandardCharsets.UTF_8));
+      items.add(new String(bytes, StandardCharsets.UTF_8));
     }
 
     @Override
@@ -407,7 +410,7 @@ class HttpEventStreamResponseTest {
     }
 
     private void emit(String value) {
-      subscriber.onNext(ByteBuffer.wrap(value.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+      subscriber.onNext(ByteBuffer.wrap(value.getBytes(StandardCharsets.UTF_8)));
     }
 
     private void complete() {
@@ -442,8 +445,7 @@ class HttpEventStreamResponseTest {
                 subscriber.onComplete();
               } else if (index < values.size()) {
                 String value = values.get(index++);
-                subscriber.onNext(
-                    ByteBuffer.wrap(value.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+                subscriber.onNext(ByteBuffer.wrap(value.getBytes(StandardCharsets.UTF_8)));
               }
             }
 
@@ -472,8 +474,7 @@ class HttpEventStreamResponseTest {
             public void request(long count) {
               if (!emitted) {
                 emitted = true;
-                subscriber.onNext(
-                    ByteBuffer.wrap(value.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+                subscriber.onNext(ByteBuffer.wrap(value.getBytes(StandardCharsets.UTF_8)));
               }
             }
 

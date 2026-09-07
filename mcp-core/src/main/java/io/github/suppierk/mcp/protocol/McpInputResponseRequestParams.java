@@ -1,6 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -13,7 +12,7 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpInputResponseRequestParams(
-    @JsonProperty("_meta") McpRequestMetaObject meta,
+    McpRequestMetaObject meta,
     Optional<McpInputResponses> inputResponses,
     Optional<String> requestState) {
   /** Validates and copies the protocol fields. */

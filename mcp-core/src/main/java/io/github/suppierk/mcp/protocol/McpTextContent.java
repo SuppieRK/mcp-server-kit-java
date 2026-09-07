@@ -1,6 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -13,9 +12,7 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpTextContent(
-    @JsonProperty("_meta") Optional<McpMetaObject> meta,
-    Optional<McpAnnotations> annotations,
-    String text)
+    Optional<McpMetaObject> meta, Optional<McpAnnotations> annotations, String text)
     implements McpContentBlock, McpSamplingMessageContentBlock {
 
   private static final String TYPE = "text";
@@ -41,7 +38,6 @@ public record McpTextContent(
    *
    * @return the constant value
    */
-  @JsonProperty("type")
   public String type() {
     return TYPE;
   }

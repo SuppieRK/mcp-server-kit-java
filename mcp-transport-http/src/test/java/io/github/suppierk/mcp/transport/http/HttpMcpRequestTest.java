@@ -4,7 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.lang.reflect.RecordComponent;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -36,8 +38,8 @@ class HttpMcpRequestTest {
   void exposesOnlyMethodHeadersAndBody() {
     assertEquals(
         List.of("method", "headers", "body"),
-        java.util.Arrays.stream(HttpMcpRequest.class.getRecordComponents())
-            .map(java.lang.reflect.RecordComponent::getName)
+        Arrays.stream(HttpMcpRequest.class.getRecordComponents())
+            .map(RecordComponent::getName)
             .toList());
     assertEquals(
         "java.util.Map<java.lang.String, java.util.List<java.lang.String>>",

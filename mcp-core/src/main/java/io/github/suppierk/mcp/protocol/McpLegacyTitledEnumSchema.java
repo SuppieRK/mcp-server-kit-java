@@ -1,6 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -18,9 +17,9 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpLegacyTitledEnumSchema(
-    @JsonProperty("default") Optional<String> defaultValue,
+    Optional<String> defaultValue,
     Optional<String> description,
-    @JsonProperty("enum") List<String> values,
+    List<String> values,
     Optional<List<String>> enumNames,
     Optional<String> title)
     implements McpEnumSchema, McpPrimitiveSchemaDefinition {
@@ -41,7 +40,6 @@ public record McpLegacyTitledEnumSchema(
    *
    * @return the constant value
    */
-  @JsonProperty("type")
   public String type() {
     return TYPE;
   }

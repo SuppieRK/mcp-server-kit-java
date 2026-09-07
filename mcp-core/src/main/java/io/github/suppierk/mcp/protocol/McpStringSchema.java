@@ -1,6 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -16,7 +15,7 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpStringSchema(
-    @JsonProperty("default") Optional<String> defaultValue,
+    Optional<String> defaultValue,
     Optional<String> description,
     Optional<String> format,
     Optional<Long> maxLength,
@@ -41,7 +40,6 @@ public record McpStringSchema(
    *
    * @return the constant value
    */
-  @JsonProperty("type")
   public String type() {
     return TYPE;
   }

@@ -1,6 +1,6 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -17,13 +17,13 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpServerCapabilities(
-    Optional<ObjectNode> completions,
-    Optional<ObjectNode> experimental,
-    Optional<ObjectNode> extensions,
-    Optional<ObjectNode> logging,
-    Optional<ObjectNode> prompts,
-    Optional<ObjectNode> resources,
-    Optional<ObjectNode> tools) {
+    Optional<Map<String, ?>> completions,
+    Optional<Map<String, ?>> experimental,
+    Optional<Map<String, ?>> extensions,
+    Optional<Map<String, ?>> logging,
+    Optional<Map<String, ?>> prompts,
+    Optional<Map<String, ?>> resources,
+    Optional<Map<String, ?>> tools) {
   /** Validates and copies the protocol fields. */
   public McpServerCapabilities {
     completions = McpProtocol.copy(completions);
@@ -40,7 +40,7 @@ public record McpServerCapabilities(
    *
    * @return the copied completions capability
    */
-  public Optional<ObjectNode> completions() {
+  public Optional<Map<String, ?>> completions() {
     return McpProtocol.copy(completions);
   }
 
@@ -49,7 +49,7 @@ public record McpServerCapabilities(
    *
    * @return the copied experimental capabilities
    */
-  public Optional<ObjectNode> experimental() {
+  public Optional<Map<String, ?>> experimental() {
     return McpProtocol.copy(experimental);
   }
 
@@ -58,7 +58,7 @@ public record McpServerCapabilities(
    *
    * @return the copied extensions
    */
-  public Optional<ObjectNode> extensions() {
+  public Optional<Map<String, ?>> extensions() {
     return McpProtocol.copy(extensions);
   }
 
@@ -67,7 +67,7 @@ public record McpServerCapabilities(
    *
    * @return the copied logging capability
    */
-  public Optional<ObjectNode> logging() {
+  public Optional<Map<String, ?>> logging() {
     return McpProtocol.copy(logging);
   }
 
@@ -76,7 +76,7 @@ public record McpServerCapabilities(
    *
    * @return the copied prompts capability
    */
-  public Optional<ObjectNode> prompts() {
+  public Optional<Map<String, ?>> prompts() {
     return McpProtocol.copy(prompts);
   }
 
@@ -85,7 +85,7 @@ public record McpServerCapabilities(
    *
    * @return the copied resources capability
    */
-  public Optional<ObjectNode> resources() {
+  public Optional<Map<String, ?>> resources() {
     return McpProtocol.copy(resources);
   }
 
@@ -94,7 +94,7 @@ public record McpServerCapabilities(
    *
    * @return the copied tools capability
    */
-  public Optional<ObjectNode> tools() {
+  public Optional<Map<String, ?>> tools() {
     return McpProtocol.copy(tools);
   }
 
@@ -109,13 +109,13 @@ public record McpServerCapabilities(
 
   /** Builds {@link McpServerCapabilities} values. */
   public static final class Builder {
-    private Optional<ObjectNode> completions = Optional.empty();
-    private Optional<ObjectNode> experimental = Optional.empty();
-    private Optional<ObjectNode> extensions = Optional.empty();
-    private Optional<ObjectNode> logging = Optional.empty();
-    private Optional<ObjectNode> prompts = Optional.empty();
-    private Optional<ObjectNode> resources = Optional.empty();
-    private Optional<ObjectNode> tools = Optional.empty();
+    private Optional<Map<String, ?>> completions = Optional.empty();
+    private Optional<Map<String, ?>> experimental = Optional.empty();
+    private Optional<Map<String, ?>> extensions = Optional.empty();
+    private Optional<Map<String, ?>> logging = Optional.empty();
+    private Optional<Map<String, ?>> prompts = Optional.empty();
+    private Optional<Map<String, ?>> resources = Optional.empty();
+    private Optional<Map<String, ?>> tools = Optional.empty();
 
     private Builder() {}
 
@@ -125,7 +125,7 @@ public record McpServerCapabilities(
      * @param completions the optional value
      * @return this builder
      */
-    public Builder completions(Optional<ObjectNode> completions) {
+    public Builder completions(Optional<Map<String, ?>> completions) {
       this.completions = completions;
       return this;
     }
@@ -136,7 +136,7 @@ public record McpServerCapabilities(
      * @param completions the value, or {@code null} to clear it
      * @return this builder
      */
-    public Builder completions(ObjectNode completions) {
+    public Builder completions(Map<String, ?> completions) {
       return completions(Optional.ofNullable(completions));
     }
 
@@ -146,7 +146,7 @@ public record McpServerCapabilities(
      * @param experimental the optional value
      * @return this builder
      */
-    public Builder experimental(Optional<ObjectNode> experimental) {
+    public Builder experimental(Optional<Map<String, ?>> experimental) {
       this.experimental = experimental;
       return this;
     }
@@ -157,7 +157,7 @@ public record McpServerCapabilities(
      * @param experimental the value, or {@code null} to clear it
      * @return this builder
      */
-    public Builder experimental(ObjectNode experimental) {
+    public Builder experimental(Map<String, ?> experimental) {
       return experimental(Optional.ofNullable(experimental));
     }
 
@@ -167,7 +167,7 @@ public record McpServerCapabilities(
      * @param extensions the optional value
      * @return this builder
      */
-    public Builder extensions(Optional<ObjectNode> extensions) {
+    public Builder extensions(Optional<Map<String, ?>> extensions) {
       this.extensions = extensions;
       return this;
     }
@@ -178,7 +178,7 @@ public record McpServerCapabilities(
      * @param extensions the value, or {@code null} to clear it
      * @return this builder
      */
-    public Builder extensions(ObjectNode extensions) {
+    public Builder extensions(Map<String, ?> extensions) {
       return extensions(Optional.ofNullable(extensions));
     }
 
@@ -188,7 +188,7 @@ public record McpServerCapabilities(
      * @param logging the optional value
      * @return this builder
      */
-    public Builder logging(Optional<ObjectNode> logging) {
+    public Builder logging(Optional<Map<String, ?>> logging) {
       this.logging = logging;
       return this;
     }
@@ -199,7 +199,7 @@ public record McpServerCapabilities(
      * @param logging the value, or {@code null} to clear it
      * @return this builder
      */
-    public Builder logging(ObjectNode logging) {
+    public Builder logging(Map<String, ?> logging) {
       return logging(Optional.ofNullable(logging));
     }
 
@@ -209,7 +209,7 @@ public record McpServerCapabilities(
      * @param prompts the optional value
      * @return this builder
      */
-    public Builder prompts(Optional<ObjectNode> prompts) {
+    public Builder prompts(Optional<Map<String, ?>> prompts) {
       this.prompts = prompts;
       return this;
     }
@@ -220,7 +220,7 @@ public record McpServerCapabilities(
      * @param prompts the value, or {@code null} to clear it
      * @return this builder
      */
-    public Builder prompts(ObjectNode prompts) {
+    public Builder prompts(Map<String, ?> prompts) {
       return prompts(Optional.ofNullable(prompts));
     }
 
@@ -230,7 +230,7 @@ public record McpServerCapabilities(
      * @param resources the optional value
      * @return this builder
      */
-    public Builder resources(Optional<ObjectNode> resources) {
+    public Builder resources(Optional<Map<String, ?>> resources) {
       this.resources = resources;
       return this;
     }
@@ -241,7 +241,7 @@ public record McpServerCapabilities(
      * @param resources the value, or {@code null} to clear it
      * @return this builder
      */
-    public Builder resources(ObjectNode resources) {
+    public Builder resources(Map<String, ?> resources) {
       return resources(Optional.ofNullable(resources));
     }
 
@@ -251,7 +251,7 @@ public record McpServerCapabilities(
      * @param tools the optional value
      * @return this builder
      */
-    public Builder tools(Optional<ObjectNode> tools) {
+    public Builder tools(Optional<Map<String, ?>> tools) {
       this.tools = tools;
       return this;
     }
@@ -262,7 +262,7 @@ public record McpServerCapabilities(
      * @param tools the value, or {@code null} to clear it
      * @return this builder
      */
-    public Builder tools(ObjectNode tools) {
+    public Builder tools(Map<String, ?> tools) {
       return tools(Optional.ofNullable(tools));
     }
 

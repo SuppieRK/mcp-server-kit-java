@@ -1,5 +1,6 @@
 plugins {
 	id 'com.diffplug.spotless' apply false
+	id 'com.vanniktech.maven.publish' apply false
 	id 'org.sonarqube'
 }
 
@@ -12,11 +13,12 @@ ext.versions = [
 	checkstyle: '12.3.1',
 	equalsverifier: '4.5.1',
 	jackson: '2.22.2',
+	privateJackson: '3.2.2',
 	jacoco: '0.8.15',
 	javalin: '6.4.0',
 	junit: '6.1.3',
 	micronautPlatform: '5.1.2',
-	networkntSchema: '2.0.4',
+	networkntSchema: '3.0.7',
 	quarkus: '3.39.1',
 	springBoot: '4.1.0'
 ]
@@ -29,6 +31,18 @@ def publishedModules = [
 	'mcp-spring-webflux',
 	'mcp-javalin'
 ]
+
+def verifyPublishingConfiguration = tasks.register('verifyPublishingConfiguration') {
+	group = 'verification'
+	description = 'Configures Maven Central tasks across all public modules without executing them.'
+	publishedModules.each { module ->
+		// Realize only: this task must never become an execution dependency of this check.
+		project(":${module}").tasks.named('dropMavenCentralDeployment').get()
+	}
+	doLast {
+		logger.lifecycle('Maven Central deployment tasks configured for all public modules.')
+	}
+}
 
 allprojects {
 	group = rootProject.group
@@ -56,6 +70,8 @@ subprojects {
 		}
 
 		dependencies {
+			testImplementation platform("com.fasterxml.jackson:jackson-bom:${rootProject.ext.versions.jackson}")
+			testImplementation 'com.fasterxml.jackson.core:jackson-databind'
 			testImplementation platform("org.junit:junit-bom:${rootProject.ext.versions.junit}")
 			testImplementation 'org.junit.jupiter:junit-jupiter'
 			testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
@@ -111,6 +127,7 @@ configure(subprojects.findAll { it.name in publishedModules }) {
 		}
 		tasks.named('check') {
 			dependsOn tasks.named('javadoc')
+			dependsOn verifyPublishingConfiguration
 		}
 	}
 }

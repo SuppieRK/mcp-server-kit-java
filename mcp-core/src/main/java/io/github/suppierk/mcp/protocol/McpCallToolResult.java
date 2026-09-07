@@ -1,7 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -28,11 +26,11 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpCallToolResult(
-    @JsonProperty("_meta") Optional<McpResultMetaObject> meta,
+    Optional<McpResultMetaObject> meta,
     List<McpContentBlock> content,
     Optional<Boolean> isError,
     String resultType,
-    Optional<JsonNode> structuredContent)
+    Optional<Object> structuredContent)
     implements McpServerResult, McpCallToolResultResponse.Result {
   /** Validates and copies the protocol fields. */
   public McpCallToolResult {
@@ -48,7 +46,7 @@ public record McpCallToolResult(
    *
    * @return the copied structured content
    */
-  public Optional<JsonNode> structuredContent() {
+  public Optional<Object> structuredContent() {
     return McpProtocol.copy(structuredContent);
   }
 
@@ -67,13 +65,14 @@ public record McpCallToolResult(
    * @param content the result content
    * @param structuredContent the structured result
    */
-  public McpCallToolResult(List<McpContentBlock> content, JsonNode structuredContent) {
+  public McpCallToolResult(List<McpContentBlock> content, Object structuredContent) {
     this(
         Optional.empty(),
         content,
         Optional.empty(),
         "complete",
-        Optional.of(Objects.requireNonNull(structuredContent, "structuredContent").deepCopy()));
+        Optional.of(
+            McpProtocol.copy(Objects.requireNonNull(structuredContent, "structuredContent"))));
   }
 
   /**
@@ -91,7 +90,7 @@ public record McpCallToolResult(
     private List<McpContentBlock> content;
     private Optional<Boolean> isError = Optional.empty();
     private String resultType;
-    private Optional<JsonNode> structuredContent = Optional.empty();
+    private Optional<Object> structuredContent = Optional.empty();
 
     private Builder() {}
 
@@ -165,7 +164,7 @@ public record McpCallToolResult(
      * @param structuredContent the optional value
      * @return this builder
      */
-    public Builder structuredContent(Optional<JsonNode> structuredContent) {
+    public Builder structuredContent(Optional<Object> structuredContent) {
       this.structuredContent = structuredContent;
       return this;
     }
@@ -176,7 +175,7 @@ public record McpCallToolResult(
      * @param structuredContent the value, or {@code null} to clear it
      * @return this builder
      */
-    public Builder structuredContent(JsonNode structuredContent) {
+    public Builder structuredContent(Object structuredContent) {
       return structuredContent(Optional.ofNullable(structuredContent));
     }
 

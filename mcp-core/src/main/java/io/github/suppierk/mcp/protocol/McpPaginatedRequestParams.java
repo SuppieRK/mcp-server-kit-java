@@ -1,6 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -12,8 +11,7 @@ import java.util.Optional;
  *     server should return results starting after this cursor.
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
-public record McpPaginatedRequestParams(
-    @JsonProperty("_meta") McpRequestMetaObject meta, Optional<String> cursor)
+public record McpPaginatedRequestParams(McpRequestMetaObject meta, Optional<String> cursor)
     implements McpRequestParameters {
   /** Validates and copies the protocol fields. */
   public McpPaginatedRequestParams {

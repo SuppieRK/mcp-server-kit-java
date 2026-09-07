@@ -1,8 +1,7 @@
 package io.github.suppierk.mcp.server;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import io.github.suppierk.mcp.protocol.McpError;
 import java.io.Serial;
-import java.util.Objects;
 import java.util.Optional;
 
 /** Reports a deliberate internal JSON-RPC failure. */
@@ -13,7 +12,7 @@ public final class McpInternalException extends McpProtocolException {
   public static final int CODE = -32603;
 
   /** Optional structured protocol error data. */
-  private final Optional<JsonNode> data;
+  private final Optional<Object> data;
 
   /**
    * Creates an internal failure.
@@ -21,9 +20,9 @@ public final class McpInternalException extends McpProtocolException {
    * @param message the concise error message
    * @param data optional protocol error data
    */
-  public McpInternalException(String message, Optional<JsonNode> data) {
+  public McpInternalException(String message, Optional<Object> data) {
     super(CODE, message);
-    this.data = Objects.requireNonNull(data, "data").map(JsonNode::deepCopy);
+    this.data = new McpError((long) CODE, data, message).data();
   }
 
   /**
@@ -31,7 +30,7 @@ public final class McpInternalException extends McpProtocolException {
    *
    * @return the optional error data
    */
-  public Optional<JsonNode> data() {
-    return data.map(JsonNode::deepCopy);
+  public Optional<Object> data() {
+    return data;
   }
 }

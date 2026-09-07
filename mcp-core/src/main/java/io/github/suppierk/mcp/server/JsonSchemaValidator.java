@@ -1,8 +1,5 @@
 package io.github.suppierk.mcp.server;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.networknt.schema.Error;
 import com.networknt.schema.Schema;
 import com.networknt.schema.SchemaRegistry;
@@ -12,6 +9,9 @@ import java.util.ArrayDeque;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /** Validates library-owned JSON Schema boundaries without exposing a validator SPI. */
 final class JsonSchemaValidator {
@@ -34,8 +34,8 @@ final class JsonSchemaValidator {
   }
 
   /** Compiles one safe schema or throws a registration error. */
-  Compiled compile(JsonNode schema) {
-    Objects.requireNonNull(schema, "schema");
+  Compiled compile(Object supplied) {
+    JsonNode schema = mapper.valueToTree(Objects.requireNonNull(supplied, "schema"));
     String unsafe = inspect(schema, true);
     if (unsafe != null) {
       throw new IllegalArgumentException(unsafe);
@@ -43,7 +43,8 @@ final class JsonSchemaValidator {
     try {
       Schema compiled = registry.getSchema(schema.deepCopy());
       compiled.initializeValidators();
-      return value -> {
+      return suppliedValue -> {
+        JsonNode value = mapper.valueToTree(suppliedValue);
         String invalid = inspect(value, false);
         if (invalid != null) {
           return List.of(invalid);
@@ -67,7 +68,7 @@ final class JsonSchemaValidator {
       if (mapper.writeValueAsBytes(root).length > MAXIMUM_BYTES) {
         return "The JSON document is too large";
       }
-    } catch (JsonProcessingException exception) {
+    } catch (JacksonException exception) {
       return "The JSON document cannot be measured";
     }
     ArrayDeque<NodeAtDepth> pending = new ArrayDeque<>();
@@ -101,11 +102,11 @@ final class JsonSchemaValidator {
 
   /** Tests whether a textual reference identifies another document. */
   private static boolean isExternalReference(JsonNode reference) {
-    if (reference == null || !reference.isTextual()) {
+    if (reference == null || !reference.isString()) {
       return false;
     }
     try {
-      URI uri = URI.create(reference.textValue());
+      URI uri = URI.create(reference.stringValue());
       return uri.isAbsolute()
           || uri.getRawAuthority() != null
           || (uri.getRawPath() != null && !uri.getRawPath().isEmpty())
@@ -124,7 +125,7 @@ final class JsonSchemaValidator {
   @FunctionalInterface
   interface Compiled {
     /** Returns validation messages, or an empty list. */
-    List<String> validate(JsonNode value);
+    List<String> validate(Object value);
   }
 
   /** Stores one value and its current depth. */

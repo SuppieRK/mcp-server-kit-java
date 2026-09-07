@@ -1,6 +1,6 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -15,11 +15,11 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpClientCapabilities(
-    Optional<ObjectNode> elicitation,
-    Optional<ObjectNode> experimental,
-    Optional<ObjectNode> extensions,
-    Optional<ObjectNode> roots,
-    Optional<ObjectNode> sampling) {
+    Optional<Map<String, ?>> elicitation,
+    Optional<Map<String, ?>> experimental,
+    Optional<Map<String, ?>> extensions,
+    Optional<Map<String, ?>> roots,
+    Optional<Map<String, ?>> sampling) {
   /** Validates and copies the protocol fields. */
   public McpClientCapabilities {
     elicitation = McpProtocol.copy(elicitation);
@@ -34,7 +34,7 @@ public record McpClientCapabilities(
    *
    * @return the copied elicitation capability
    */
-  public Optional<ObjectNode> elicitation() {
+  public Optional<Map<String, ?>> elicitation() {
     return McpProtocol.copy(elicitation);
   }
 
@@ -43,7 +43,7 @@ public record McpClientCapabilities(
    *
    * @return the copied experimental capabilities
    */
-  public Optional<ObjectNode> experimental() {
+  public Optional<Map<String, ?>> experimental() {
     return McpProtocol.copy(experimental);
   }
 
@@ -52,7 +52,7 @@ public record McpClientCapabilities(
    *
    * @return the copied extensions
    */
-  public Optional<ObjectNode> extensions() {
+  public Optional<Map<String, ?>> extensions() {
     return McpProtocol.copy(extensions);
   }
 
@@ -61,7 +61,7 @@ public record McpClientCapabilities(
    *
    * @return the copied roots capability
    */
-  public Optional<ObjectNode> roots() {
+  public Optional<Map<String, ?>> roots() {
     return McpProtocol.copy(roots);
   }
 
@@ -70,7 +70,7 @@ public record McpClientCapabilities(
    *
    * @return the copied sampling capability
    */
-  public Optional<ObjectNode> sampling() {
+  public Optional<Map<String, ?>> sampling() {
     return McpProtocol.copy(sampling);
   }
 
@@ -85,11 +85,11 @@ public record McpClientCapabilities(
 
   /** Builds {@link McpClientCapabilities} values. */
   public static final class Builder {
-    private Optional<ObjectNode> elicitation = Optional.empty();
-    private Optional<ObjectNode> experimental = Optional.empty();
-    private Optional<ObjectNode> extensions = Optional.empty();
-    private Optional<ObjectNode> roots = Optional.empty();
-    private Optional<ObjectNode> sampling = Optional.empty();
+    private Optional<Map<String, ?>> elicitation = Optional.empty();
+    private Optional<Map<String, ?>> experimental = Optional.empty();
+    private Optional<Map<String, ?>> extensions = Optional.empty();
+    private Optional<Map<String, ?>> roots = Optional.empty();
+    private Optional<Map<String, ?>> sampling = Optional.empty();
 
     private Builder() {}
 
@@ -99,7 +99,7 @@ public record McpClientCapabilities(
      * @param elicitation the optional value
      * @return this builder
      */
-    public Builder elicitation(Optional<ObjectNode> elicitation) {
+    public Builder elicitation(Optional<Map<String, ?>> elicitation) {
       this.elicitation = elicitation;
       return this;
     }
@@ -110,7 +110,7 @@ public record McpClientCapabilities(
      * @param elicitation the value, or {@code null} to clear it
      * @return this builder
      */
-    public Builder elicitation(ObjectNode elicitation) {
+    public Builder elicitation(Map<String, ?> elicitation) {
       return elicitation(Optional.ofNullable(elicitation));
     }
 
@@ -120,7 +120,7 @@ public record McpClientCapabilities(
      * @param experimental the optional value
      * @return this builder
      */
-    public Builder experimental(Optional<ObjectNode> experimental) {
+    public Builder experimental(Optional<Map<String, ?>> experimental) {
       this.experimental = experimental;
       return this;
     }
@@ -131,7 +131,7 @@ public record McpClientCapabilities(
      * @param experimental the value, or {@code null} to clear it
      * @return this builder
      */
-    public Builder experimental(ObjectNode experimental) {
+    public Builder experimental(Map<String, ?> experimental) {
       return experimental(Optional.ofNullable(experimental));
     }
 
@@ -141,7 +141,7 @@ public record McpClientCapabilities(
      * @param extensions the optional value
      * @return this builder
      */
-    public Builder extensions(Optional<ObjectNode> extensions) {
+    public Builder extensions(Optional<Map<String, ?>> extensions) {
       this.extensions = extensions;
       return this;
     }
@@ -152,7 +152,7 @@ public record McpClientCapabilities(
      * @param extensions the value, or {@code null} to clear it
      * @return this builder
      */
-    public Builder extensions(ObjectNode extensions) {
+    public Builder extensions(Map<String, ?> extensions) {
       return extensions(Optional.ofNullable(extensions));
     }
 
@@ -162,7 +162,7 @@ public record McpClientCapabilities(
      * @param roots the optional value
      * @return this builder
      */
-    public Builder roots(Optional<ObjectNode> roots) {
+    public Builder roots(Optional<Map<String, ?>> roots) {
       this.roots = roots;
       return this;
     }
@@ -173,7 +173,7 @@ public record McpClientCapabilities(
      * @param roots the value, or {@code null} to clear it
      * @return this builder
      */
-    public Builder roots(ObjectNode roots) {
+    public Builder roots(Map<String, ?> roots) {
       return roots(Optional.ofNullable(roots));
     }
 
@@ -183,7 +183,7 @@ public record McpClientCapabilities(
      * @param sampling the optional value
      * @return this builder
      */
-    public Builder sampling(Optional<ObjectNode> sampling) {
+    public Builder sampling(Optional<Map<String, ?>> sampling) {
       this.sampling = sampling;
       return this;
     }
@@ -194,7 +194,7 @@ public record McpClientCapabilities(
      * @param sampling the value, or {@code null} to clear it
      * @return this builder
      */
-    public Builder sampling(ObjectNode sampling) {
+    public Builder sampling(Map<String, ?> sampling) {
       return sampling(Optional.ofNullable(sampling));
     }
 

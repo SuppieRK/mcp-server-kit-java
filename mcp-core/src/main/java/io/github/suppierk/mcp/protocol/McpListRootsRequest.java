@@ -1,7 +1,6 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -14,7 +13,7 @@ import java.util.Optional;
  * @param params the method parameters
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
-public record McpListRootsRequest(Optional<ObjectNode> params) implements McpInputRequest {
+public record McpListRootsRequest(Optional<Map<String, ?>> params) implements McpInputRequest {
 
   private static final String METHOD = "roots/list";
 
@@ -28,7 +27,7 @@ public record McpListRootsRequest(Optional<ObjectNode> params) implements McpInp
    *
    * @return the copied parameters
    */
-  public Optional<ObjectNode> params() {
+  public Optional<Map<String, ?>> params() {
     return McpProtocol.copy(params);
   }
 
@@ -37,7 +36,6 @@ public record McpListRootsRequest(Optional<ObjectNode> params) implements McpInp
    *
    * @return the constant value
    */
-  @JsonProperty("method")
   public String method() {
     return METHOD;
   }
@@ -53,7 +51,7 @@ public record McpListRootsRequest(Optional<ObjectNode> params) implements McpInp
 
   /** Builds {@link McpListRootsRequest} values. */
   public static final class Builder {
-    private Optional<ObjectNode> params = Optional.empty();
+    private Optional<Map<String, ?>> params = Optional.empty();
 
     private Builder() {}
 
@@ -63,7 +61,7 @@ public record McpListRootsRequest(Optional<ObjectNode> params) implements McpInp
      * @param params the optional value
      * @return this builder
      */
-    public Builder params(Optional<ObjectNode> params) {
+    public Builder params(Optional<Map<String, ?>> params) {
       this.params = params;
       return this;
     }
@@ -74,7 +72,7 @@ public record McpListRootsRequest(Optional<ObjectNode> params) implements McpInp
      * @param params the value, or {@code null} to clear it
      * @return this builder
      */
-    public Builder params(ObjectNode params) {
+    public Builder params(Map<String, ?> params) {
       return params(Optional.ofNullable(params));
     }
 

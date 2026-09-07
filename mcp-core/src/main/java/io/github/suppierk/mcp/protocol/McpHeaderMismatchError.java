@@ -1,7 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -14,11 +12,11 @@ import java.util.Optional;
  *     href="https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http">MCP
  *     Streamable HTTP transport</a>
  */
-public record McpHeaderMismatchError(Error error, Optional<JsonNode> id) implements JsonRpcMessage {
+public record McpHeaderMismatchError(Error error, Optional<Object> id) implements JsonRpcMessage {
   /** Validates the response. */
   public McpHeaderMismatchError {
     Objects.requireNonNull(error, "error");
-    id = Objects.requireNonNull(id, "id").map(JsonNode::deepCopy);
+    id = Objects.requireNonNull(id, "id").map(McpProtocol::copy);
   }
 
   /**
@@ -26,7 +24,7 @@ public record McpHeaderMismatchError(Error error, Optional<JsonNode> id) impleme
    *
    * @return the copied identifier
    */
-  public Optional<JsonNode> id() {
+  public Optional<Object> id() {
     return McpProtocol.copy(id);
   }
 
@@ -35,7 +33,6 @@ public record McpHeaderMismatchError(Error error, Optional<JsonNode> id) impleme
    *
    * @return {@code 2.0}
    */
-  @JsonProperty("jsonrpc")
   public String jsonrpc() {
     return McpProtocol.JSON_RPC_VERSION;
   }
@@ -46,11 +43,11 @@ public record McpHeaderMismatchError(Error error, Optional<JsonNode> id) impleme
    * @param message the error message
    * @param data the optional error data
    */
-  public record Error(String message, Optional<JsonNode> data) {
+  public record Error(String message, Optional<Object> data) {
     /** Validates the error. */
     public Error {
       Objects.requireNonNull(message, "message");
-      data = Objects.requireNonNull(data, "data").map(JsonNode::deepCopy);
+      data = Objects.requireNonNull(data, "data").map(McpProtocol::copy);
     }
 
     /**
@@ -58,7 +55,7 @@ public record McpHeaderMismatchError(Error error, Optional<JsonNode> id) impleme
      *
      * @return the copied error data
      */
-    public Optional<JsonNode> data() {
+    public Optional<Object> data() {
       return McpProtocol.copy(data);
     }
 
@@ -67,7 +64,6 @@ public record McpHeaderMismatchError(Error error, Optional<JsonNode> id) impleme
      *
      * @return {@code -32020}
      */
-    @JsonProperty("code")
     public long code() {
       return -32020;
     }
@@ -84,7 +80,7 @@ public record McpHeaderMismatchError(Error error, Optional<JsonNode> id) impleme
     /** Builds {@link Error} values. */
     public static final class Builder {
       private String message;
-      private Optional<JsonNode> data = Optional.empty();
+      private Optional<Object> data = Optional.empty();
 
       private Builder() {}
 
@@ -105,7 +101,7 @@ public record McpHeaderMismatchError(Error error, Optional<JsonNode> id) impleme
        * @param data the optional value
        * @return this builder
        */
-      public Builder data(Optional<JsonNode> data) {
+      public Builder data(Optional<Object> data) {
         this.data = data;
         return this;
       }
@@ -116,7 +112,7 @@ public record McpHeaderMismatchError(Error error, Optional<JsonNode> id) impleme
        * @param data the value, or {@code null} to clear it
        * @return this builder
        */
-      public Builder data(JsonNode data) {
+      public Builder data(Object data) {
         return data(Optional.ofNullable(data));
       }
 
@@ -143,7 +139,7 @@ public record McpHeaderMismatchError(Error error, Optional<JsonNode> id) impleme
   /** Builds {@link McpHeaderMismatchError} values. */
   public static final class Builder {
     private Error error;
-    private Optional<JsonNode> id = Optional.empty();
+    private Optional<Object> id = Optional.empty();
 
     private Builder() {}
 
@@ -164,7 +160,7 @@ public record McpHeaderMismatchError(Error error, Optional<JsonNode> id) impleme
      * @param id the optional value
      * @return this builder
      */
-    public Builder id(Optional<JsonNode> id) {
+    public Builder id(Optional<Object> id) {
       this.id = id;
       return this;
     }
@@ -175,7 +171,7 @@ public record McpHeaderMismatchError(Error error, Optional<JsonNode> id) impleme
      * @param id the value, or {@code null} to clear it
      * @return this builder
      */
-    public Builder id(JsonNode id) {
+    public Builder id(Object id) {
       return id(Optional.ofNullable(id));
     }
 

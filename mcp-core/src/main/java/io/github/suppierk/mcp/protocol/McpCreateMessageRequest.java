@@ -1,6 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 
 /**
@@ -26,7 +25,6 @@ public record McpCreateMessageRequest(McpCreateMessageRequestParams params)
    *
    * @return the constant value
    */
-  @JsonProperty("method")
   public String method() {
     return METHOD;
   }

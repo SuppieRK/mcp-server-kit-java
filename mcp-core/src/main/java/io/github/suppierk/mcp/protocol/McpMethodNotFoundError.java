@@ -1,7 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -19,7 +17,7 @@ import java.util.Optional;
  *     single sentence.
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
-public record McpMethodNotFoundError(Optional<JsonNode> data, String message) {
+public record McpMethodNotFoundError(Optional<Object> data, String message) {
   /** Validates and copies the protocol fields. */
   public McpMethodNotFoundError {
     data = McpProtocol.copy(data);
@@ -31,7 +29,7 @@ public record McpMethodNotFoundError(Optional<JsonNode> data, String message) {
    *
    * @return the copied error data
    */
-  public Optional<JsonNode> data() {
+  public Optional<Object> data() {
     return McpProtocol.copy(data);
   }
 
@@ -40,7 +38,6 @@ public record McpMethodNotFoundError(Optional<JsonNode> data, String message) {
    *
    * @return the constant value
    */
-  @JsonProperty("code")
   public Long code() {
     return -32601L;
   }
@@ -56,7 +53,7 @@ public record McpMethodNotFoundError(Optional<JsonNode> data, String message) {
 
   /** Builds {@link McpMethodNotFoundError} values. */
   public static final class Builder {
-    private Optional<JsonNode> data = Optional.empty();
+    private Optional<Object> data = Optional.empty();
     private String message;
 
     private Builder() {}
@@ -67,7 +64,7 @@ public record McpMethodNotFoundError(Optional<JsonNode> data, String message) {
      * @param data the optional value
      * @return this builder
      */
-    public Builder data(Optional<JsonNode> data) {
+    public Builder data(Optional<Object> data) {
       this.data = data;
       return this;
     }
@@ -78,7 +75,7 @@ public record McpMethodNotFoundError(Optional<JsonNode> data, String message) {
      * @param data the value, or {@code null} to clear it
      * @return this builder
      */
-    public Builder data(JsonNode data) {
+    public Builder data(Object data) {
       return data(Optional.ofNullable(data));
     }
 

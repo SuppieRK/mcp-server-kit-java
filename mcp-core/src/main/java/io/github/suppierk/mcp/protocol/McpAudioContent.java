@@ -1,6 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -15,7 +14,7 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpAudioContent(
-    @JsonProperty("_meta") Optional<McpMetaObject> meta,
+    Optional<McpMetaObject> meta,
     Optional<McpAnnotations> annotations,
     String data,
     String mimeType)
@@ -36,7 +35,6 @@ public record McpAudioContent(
    *
    * @return the constant value
    */
-  @JsonProperty("type")
   public String type() {
     return TYPE;
   }

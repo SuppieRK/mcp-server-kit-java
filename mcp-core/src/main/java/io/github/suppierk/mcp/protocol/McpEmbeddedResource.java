@@ -1,7 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -15,9 +13,7 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpEmbeddedResource(
-    @JsonProperty("_meta") Optional<McpMetaObject> meta,
-    Optional<McpAnnotations> annotations,
-    JsonNode resource)
+    Optional<McpMetaObject> meta, Optional<McpAnnotations> annotations, Object resource)
     implements McpContentBlock {
 
   private static final String TYPE = "resource";
@@ -26,7 +22,7 @@ public record McpEmbeddedResource(
   public McpEmbeddedResource {
     Objects.requireNonNull(meta, "meta");
     Objects.requireNonNull(annotations, "annotations");
-    resource = Objects.requireNonNull(resource, "resource").deepCopy();
+    resource = McpProtocol.copy(Objects.requireNonNull(resource, "resource"));
   }
 
   /**
@@ -34,7 +30,7 @@ public record McpEmbeddedResource(
    *
    * @return the copied resource
    */
-  public JsonNode resource() {
+  public Object resource() {
     return McpProtocol.copy(resource);
   }
 
@@ -43,7 +39,6 @@ public record McpEmbeddedResource(
    *
    * @return the constant value
    */
-  @JsonProperty("type")
   public String type() {
     return TYPE;
   }
@@ -61,7 +56,7 @@ public record McpEmbeddedResource(
   public static final class Builder {
     private Optional<McpMetaObject> meta = Optional.empty();
     private Optional<McpAnnotations> annotations = Optional.empty();
-    private JsonNode resource;
+    private Object resource;
 
     private Builder() {}
 
@@ -113,7 +108,7 @@ public record McpEmbeddedResource(
      * @param resource the value
      * @return this builder
      */
-    public Builder resource(JsonNode resource) {
+    public Builder resource(Object resource) {
       this.resource = resource;
       return this;
     }

@@ -1,6 +1,6 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -15,7 +15,7 @@ import java.util.Optional;
  *     responses.
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
-public record McpElicitResult(String action, Optional<ObjectNode> content)
+public record McpElicitResult(String action, Optional<Map<String, ?>> content)
     implements McpInputResponse {
   /** Validates and copies the protocol fields. */
   public McpElicitResult {
@@ -28,7 +28,7 @@ public record McpElicitResult(String action, Optional<ObjectNode> content)
    *
    * @return the copied content
    */
-  public Optional<ObjectNode> content() {
+  public Optional<Map<String, ?>> content() {
     return McpProtocol.copy(content);
   }
 
@@ -44,7 +44,7 @@ public record McpElicitResult(String action, Optional<ObjectNode> content)
   /** Builds {@link McpElicitResult} values. */
   public static final class Builder {
     private String action;
-    private Optional<ObjectNode> content = Optional.empty();
+    private Optional<Map<String, ?>> content = Optional.empty();
 
     private Builder() {}
 
@@ -65,7 +65,7 @@ public record McpElicitResult(String action, Optional<ObjectNode> content)
      * @param content the optional value
      * @return this builder
      */
-    public Builder content(Optional<ObjectNode> content) {
+    public Builder content(Optional<Map<String, ?>> content) {
       this.content = content;
       return this;
     }
@@ -76,7 +76,7 @@ public record McpElicitResult(String action, Optional<ObjectNode> content)
      * @param content the value, or {@code null} to clear it
      * @return this builder
      */
-    public Builder content(ObjectNode content) {
+    public Builder content(Map<String, ?> content) {
       return content(Optional.ofNullable(content));
     }
 

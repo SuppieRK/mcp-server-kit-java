@@ -1,13 +1,15 @@
 package io.github.suppierk.mcp.server;
 
+import java.util.concurrent.CompletableFuture;
+
 /**
  * Handles one typed MCP operation with application-owned invocation data.
  *
  * <p>The server kit invokes a selected handler once, after the first positive downstream demand. A
  * synchronous registration runs the handler inline on that demand thread. An asynchronous
  * registration also invokes the handler inline, but the application owns the returned {@link
- * java.util.concurrent.CompletableFuture} and its execution policy. The server kit does not select
- * an executor or provide thread affinity.
+ * CompletableFuture} and its execution policy. The server kit does not select an executor or
+ * provide thread affinity.
  *
  * <p>The handler and its eventual result must be non-null. A protocol exception becomes its fixed
  * error response. Another {@link Exception} becomes a generic internal-error response. An {@link

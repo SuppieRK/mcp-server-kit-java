@@ -1,6 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 
 /**
@@ -9,8 +8,7 @@ import java.util.Objects;
  * @param meta the optional protocol metadata
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
-public record McpRequestParams(@JsonProperty("_meta") McpRequestMetaObject meta)
-    implements McpRequestParameters {
+public record McpRequestParams(McpRequestMetaObject meta) implements McpRequestParameters {
   /** Validates and copies the protocol fields. */
   public McpRequestParams {
     Objects.requireNonNull(meta, "meta");

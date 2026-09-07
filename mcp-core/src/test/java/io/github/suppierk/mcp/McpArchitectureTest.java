@@ -7,11 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.node.TextNode;
 import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
@@ -27,6 +22,7 @@ import io.github.suppierk.mcp.protocol.McpCacheableResult;
 import io.github.suppierk.mcp.protocol.McpIcon;
 import io.github.suppierk.mcp.server.McpProtocolException;
 import io.github.suppierk.mcp.server.McpServerKit;
+import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -37,7 +33,9 @@ import java.lang.reflect.Type;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.SubmissionPublisher;
 import nl.jqno.equalsverifier.EqualsVerifier;
@@ -45,6 +43,12 @@ import nl.jqno.equalsverifier.ScanOption;
 import nl.jqno.equalsverifier.Warning;
 import nl.jqno.equalsverifier.api.MultipleTypeEqualsVerifierApi;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ValueDeserializer;
+import tools.jackson.databind.node.JsonNodeFactory;
+import tools.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.StringNode;
 
 class McpArchitectureTest {
   private static final String CORE_PACKAGE = "io.github.suppierk.mcp..";
@@ -57,6 +61,94 @@ class McpArchitectureTest {
       new ClassFileImporter()
           .withImportOption(new ImportOption.DoNotIncludeTests())
           .importPackages("io.github.suppierk.mcp");
+
+  @Test
+  void serverBuilderDoesNotExposeJsonImplementationConfiguration() {
+    List<String> exposed =
+        Arrays.stream(McpServerKit.Builder.class.getMethods())
+            .filter(method -> method.getDeclaringClass() == McpServerKit.Builder.class)
+            .filter(
+                method ->
+                    Arrays.stream(method.getGenericParameterTypes())
+                        .anyMatch(type -> type.getTypeName().contains("jackson")))
+            .map(Method::toGenericString)
+            .toList();
+    assertTrue(exposed.isEmpty(), () -> "JSON implementation configuration leaks: " + exposed);
+  }
+
+  @Test
+  void publicCoreSignaturesDoNotExposeJacksonTypes() {
+    List<String> exposed = new ArrayList<>();
+    for (JavaClass imported : CORE_CLASSES) {
+      Class<?> type = imported.reflect();
+      if (!Modifier.isPublic(type.getModifiers())) {
+        continue;
+      }
+      for (var constructor : type.getDeclaredConstructors()) {
+        if (Modifier.isPublic(constructor.getModifiers())
+            || Modifier.isProtected(constructor.getModifiers())) {
+          exposed.add(constructor.toGenericString());
+        }
+      }
+      for (var method : type.getDeclaredMethods()) {
+        if (Modifier.isPublic(method.getModifiers())
+            || Modifier.isProtected(method.getModifiers())) {
+          exposed.add(method.toGenericString());
+        }
+      }
+      for (var field : type.getDeclaredFields()) {
+        if (Modifier.isPublic(field.getModifiers()) || Modifier.isProtected(field.getModifiers())) {
+          exposed.add(field.toGenericString());
+        }
+      }
+      if (type.isRecord()) {
+        for (var component : type.getRecordComponents()) {
+          exposed.add(type.getName() + " " + component.getGenericType().getTypeName());
+        }
+      }
+    }
+    exposed.removeIf(signature -> !signature.contains("jackson"));
+    assertTrue(exposed.isEmpty(), () -> "JSON implementation types leak: " + exposed);
+  }
+
+  @Test
+  void publicCoreDeclarationsDoNotExposeJacksonAnnotations() {
+    List<String> exposed = new ArrayList<>();
+    for (JavaClass imported : CORE_CLASSES) {
+      Class<?> type = imported.reflect();
+      if (!Modifier.isPublic(type.getModifiers())) {
+        continue;
+      }
+      collectJacksonAnnotations(type, exposed);
+      for (var constructor : type.getConstructors()) {
+        collectJacksonAnnotations(constructor, exposed);
+        for (var parameter : constructor.getParameters()) {
+          collectJacksonAnnotations(parameter, exposed);
+        }
+      }
+      for (var method : type.getMethods()) {
+        collectJacksonAnnotations(method, exposed);
+        for (var parameter : method.getParameters()) {
+          collectJacksonAnnotations(parameter, exposed);
+        }
+      }
+      for (var field : type.getFields()) {
+        collectJacksonAnnotations(field, exposed);
+      }
+      if (type.isRecord()) {
+        for (var component : type.getRecordComponents()) {
+          collectJacksonAnnotations(component, exposed);
+        }
+      }
+    }
+    assertTrue(exposed.isEmpty(), () -> "Jackson annotations leak: " + exposed);
+  }
+
+  private static void collectJacksonAnnotations(AnnotatedElement element, List<String> exposed) {
+    Arrays.stream(element.getAnnotations())
+        .filter(annotation -> annotation.annotationType().getName().contains("jackson"))
+        .forEach(annotation -> exposed.add(element + " " + annotation));
+  }
 
   @Test
   void coreExposesOnlyTheServerKitEntryPoint() {
@@ -225,6 +317,9 @@ class McpArchitectureTest {
                       type.getName().equals(SCHEMA_VALIDATOR)
                           || type.getName().equals(SERVER_OUTPUT)),
               ScanOption.except(McpProtocolException.class::isAssignableFrom),
+              // Private serializer machinery inherits the implementation library's identity
+              // semantics.
+              ScanOption.except(ValueDeserializer.class::isAssignableFrom),
               ScanOption.except(
                   type ->
                       isBuilder(type)
@@ -261,7 +356,18 @@ class McpArchitectureTest {
     verifier
         .suppress(Warning.NULL_FIELDS)
         .withPrefabValues(String.class, redString, blueString)
-        .withPrefabValues(JsonNode.class, TextNode.valueOf("red"), TextNode.valueOf("blue"))
+        .withPrefabValues(Object.class, "red JSON value", "blue JSON value")
+        .withGenericPrefabValues(
+            Map.class,
+            (key, value) -> {
+              var values = new LinkedHashMap<>();
+              values.put(key, value);
+              if (key instanceof String && value instanceof String) {
+                values.put("type", "object");
+              }
+              return values;
+            })
+        .withPrefabValues(JsonNode.class, StringNode.valueOf("red"), StringNode.valueOf("blue"))
         .withPrefabValues(ObjectNode.class, redObject, blueObject)
         .withPrefabValues(ObjectMapper.class, new ObjectMapper(), new ObjectMapper())
         .withPrefabValues(SubmissionPublisher.class, redPublisher, bluePublisher)

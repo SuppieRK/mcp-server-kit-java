@@ -1,6 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 
 /**
@@ -23,7 +22,6 @@ public record McpElicitRequest(McpElicitRequestParams params) implements McpInpu
    *
    * @return the constant value
    */
-  @JsonProperty("method")
   public String method() {
     return METHOD;
   }

@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.github.suppierk.mcp.protocol.JsonRpcErrorResponse;
 import io.github.suppierk.mcp.protocol.JsonRpcMessage;
 import io.github.suppierk.mcp.protocol.JsonRpcRequest;
@@ -20,6 +19,7 @@ import io.github.suppierk.mcp.server.McpInternalException;
 import io.github.suppierk.mcp.server.McpServerKit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Flow;
@@ -123,7 +123,7 @@ class ReactorFutureInteropTest {
   }
 
   private static McpTool tool() {
-    return new McpTool("reactor", JSON.objectNode().put("type", "object"));
+    return new McpTool("reactor", Map.of("type", "object"));
   }
 
   private static McpCallToolResult toolResult(String value) {
@@ -131,12 +131,20 @@ class ReactorFutureInteropTest {
   }
 
   private static JsonRpcRequest toolCall(int id) {
-    ObjectNode params = JSON.objectNode().put("name", "reactor");
-    params.putObject("arguments");
-    ObjectNode metadata = params.putObject("_meta");
-    metadata.put(McpProtocol.PROTOCOL_VERSION_KEY, McpProtocol.REVISION);
-    metadata.putObject(McpProtocol.CLIENT_CAPABILITIES_KEY);
-    return new JsonRpcRequest(JSON.numberNode(id), McpCallToolRequest.METHOD, params);
+    return new JsonRpcRequest(
+        id,
+        McpCallToolRequest.METHOD,
+        Map.of(
+            "name",
+            "reactor",
+            "arguments",
+            Map.of(),
+            "_meta",
+            Map.of(
+                McpProtocol.PROTOCOL_VERSION_KEY,
+                McpProtocol.REVISION,
+                McpProtocol.CLIENT_CAPABILITIES_KEY,
+                Map.of())));
   }
 
   private static JsonRpcMessage invoke(McpServerKit<McpEmptyContext> kit, JsonRpcRequest request) {

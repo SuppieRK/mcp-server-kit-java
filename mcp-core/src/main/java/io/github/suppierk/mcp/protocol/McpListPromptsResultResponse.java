@@ -1,7 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Objects;
 
 /**
@@ -12,11 +10,11 @@ import java.util.Objects;
  * @param result the successful result
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
-public record McpListPromptsResultResponse(JsonNode id, McpListPromptsResult result)
+public record McpListPromptsResultResponse(Object id, McpListPromptsResult result)
     implements JsonRpcResponse {
   /** Validates and copies the protocol fields. */
   public McpListPromptsResultResponse {
-    id = Objects.requireNonNull(id, "id").deepCopy();
+    id = McpProtocol.copy(Objects.requireNonNull(id, "id"));
     Objects.requireNonNull(result, "result");
   }
 
@@ -25,7 +23,7 @@ public record McpListPromptsResultResponse(JsonNode id, McpListPromptsResult res
    *
    * @return the copied identifier
    */
-  public JsonNode id() {
+  public Object id() {
     return McpProtocol.copy(id);
   }
 
@@ -34,7 +32,6 @@ public record McpListPromptsResultResponse(JsonNode id, McpListPromptsResult res
    *
    * @return the constant value
    */
-  @JsonProperty("jsonrpc")
   public String jsonrpc() {
     return McpProtocol.JSON_RPC_VERSION;
   }
@@ -50,7 +47,7 @@ public record McpListPromptsResultResponse(JsonNode id, McpListPromptsResult res
 
   /** Builds {@link McpListPromptsResultResponse} values. */
   public static final class Builder {
-    private JsonNode id;
+    private Object id;
     private McpListPromptsResult result;
 
     private Builder() {}
@@ -61,7 +58,7 @@ public record McpListPromptsResultResponse(JsonNode id, McpListPromptsResult res
      * @param id the value
      * @return this builder
      */
-    public Builder id(JsonNode id) {
+    public Builder id(Object id) {
       this.id = id;
       return this;
     }

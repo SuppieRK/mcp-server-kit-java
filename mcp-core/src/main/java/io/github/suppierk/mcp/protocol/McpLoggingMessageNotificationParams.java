@@ -1,7 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -16,14 +14,14 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpLoggingMessageNotificationParams(
-    @JsonProperty("_meta") Optional<McpNotificationMetaObject> meta,
-    JsonNode data,
+    Optional<McpNotificationMetaObject> meta,
+    Object data,
     McpLoggingLevel level,
     Optional<String> logger) {
   /** Validates and copies the protocol fields. */
   public McpLoggingMessageNotificationParams {
     Objects.requireNonNull(meta, "meta");
-    data = Objects.requireNonNull(data, "data").deepCopy();
+    data = McpProtocol.copy(Objects.requireNonNull(data, "data"));
     Objects.requireNonNull(level, "level");
     Objects.requireNonNull(logger, "logger");
   }
@@ -33,7 +31,7 @@ public record McpLoggingMessageNotificationParams(
    *
    * @return the copied log data
    */
-  public JsonNode data() {
+  public Object data() {
     return McpProtocol.copy(data);
   }
 
@@ -49,7 +47,7 @@ public record McpLoggingMessageNotificationParams(
   /** Builds {@link McpLoggingMessageNotificationParams} values. */
   public static final class Builder {
     private Optional<McpNotificationMetaObject> meta = Optional.empty();
-    private JsonNode data;
+    private Object data;
     private McpLoggingLevel level;
     private Optional<String> logger = Optional.empty();
 
@@ -82,7 +80,7 @@ public record McpLoggingMessageNotificationParams(
      * @param data the value
      * @return this builder
      */
-    public Builder data(JsonNode data) {
+    public Builder data(Object data) {
       this.data = data;
       return this;
     }

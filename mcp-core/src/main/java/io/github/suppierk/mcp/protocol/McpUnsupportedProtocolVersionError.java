@@ -1,7 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -15,12 +13,12 @@ import java.util.Optional;
  *     href="https://modelcontextprotocol.io/specification/2026-07-28/basic/index#version-negotiation">MCP
  *     version negotiation</a>
  */
-public record McpUnsupportedProtocolVersionError(Error error, Optional<JsonNode> id)
+public record McpUnsupportedProtocolVersionError(Error error, Optional<Object> id)
     implements JsonRpcMessage {
   /** Validates the response. */
   public McpUnsupportedProtocolVersionError {
     Objects.requireNonNull(error, "error");
-    id = Objects.requireNonNull(id, "id").map(JsonNode::deepCopy);
+    id = Objects.requireNonNull(id, "id").map(McpProtocol::copy);
   }
 
   /**
@@ -28,7 +26,7 @@ public record McpUnsupportedProtocolVersionError(Error error, Optional<JsonNode>
    *
    * @return the copied identifier
    */
-  public Optional<JsonNode> id() {
+  public Optional<Object> id() {
     return McpProtocol.copy(id);
   }
 
@@ -37,7 +35,6 @@ public record McpUnsupportedProtocolVersionError(Error error, Optional<JsonNode>
    *
    * @return {@code 2.0}
    */
-  @JsonProperty("jsonrpc")
   public String jsonrpc() {
     return McpProtocol.JSON_RPC_VERSION;
   }
@@ -60,7 +57,6 @@ public record McpUnsupportedProtocolVersionError(Error error, Optional<JsonNode>
      *
      * @return {@code -32022}
      */
-    @JsonProperty("code")
     public long code() {
       return -32022;
     }
@@ -188,7 +184,7 @@ public record McpUnsupportedProtocolVersionError(Error error, Optional<JsonNode>
   /** Builds {@link McpUnsupportedProtocolVersionError} values. */
   public static final class Builder {
     private Error error;
-    private Optional<JsonNode> id = Optional.empty();
+    private Optional<Object> id = Optional.empty();
 
     private Builder() {}
 
@@ -209,7 +205,7 @@ public record McpUnsupportedProtocolVersionError(Error error, Optional<JsonNode>
      * @param id the optional value
      * @return this builder
      */
-    public Builder id(Optional<JsonNode> id) {
+    public Builder id(Optional<Object> id) {
       this.id = id;
       return this;
     }
@@ -220,7 +216,7 @@ public record McpUnsupportedProtocolVersionError(Error error, Optional<JsonNode>
      * @param id the value, or {@code null} to clear it
      * @return this builder
      */
-    public Builder id(JsonNode id) {
+    public Builder id(Object id) {
       return id(Optional.ofNullable(id));
     }
 

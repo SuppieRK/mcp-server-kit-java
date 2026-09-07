@@ -1,6 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -20,10 +19,7 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpCacheableResult(
-    @JsonProperty("_meta") Optional<McpResultMetaObject> meta,
-    String cacheScope,
-    String resultType,
-    Long ttlMs) {
+    Optional<McpResultMetaObject> meta, String cacheScope, String resultType, Long ttlMs) {
   /** The cache scope for one authorization context. */
   public static final String CACHE_SCOPE_PRIVATE = "private";
 

@@ -3,12 +3,14 @@ package io.github.suppierk.mcp.protocol;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.github.suppierk.mcp.JsonTestValues;
+import io.github.suppierk.mcp.server.McpEmptyContext;
+import io.github.suppierk.mcp.server.McpServerKit;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Constructor;
@@ -19,17 +21,24 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.RecordComponent;
 import java.lang.reflect.Type;
+import java.lang.reflect.WildcardType;
 import java.net.URI;
 import java.security.MessageDigest;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 class McpProtocolModelTest {
   private static final String RESOURCE_ROOT = "mcp/2026-07-28/";
@@ -55,21 +64,89 @@ class McpProtocolModelTest {
       if (schemaFields.isEmpty() || !type.isRecord()) {
         continue;
       }
-      Set<String> javaFields = new HashSet<>();
-      for (RecordComponent component : type.getRecordComponents()) {
-        JsonProperty property = component.getAnnotation(JsonProperty.class);
-        javaFields.add(property == null ? component.getName() : property.value());
-        schemaFields.stream()
-            .filter(field -> field.endsWith("/" + component.getName()))
-            .forEach(javaFields::add);
+      try (var kit = McpServerKit.builder("wire-audit", "1", McpEmptyContext.class).build()) {
+        JsonNode encoded =
+            JsonMapper.builder()
+                .build()
+                .readTree(kit.encode(new WireSample(wireSample(type))))
+                .path("value");
+        Set<String> wireFields = new HashSet<>();
+        encoded.fieldNames().forEachRemaining(wireFields::add);
+        assertTrue(
+            wireFields.containsAll(schemaFields),
+            definition + " expected fields " + schemaFields + " but encoded " + encoded);
       }
-      for (Method method : type.getDeclaredMethods()) {
-        JsonProperty property = method.getAnnotation(JsonProperty.class);
-        if (property != null) {
-          javaFields.add(property.value());
-        }
+    }
+  }
+
+  private record WireSample(Object value) implements JsonRpcMessage {}
+
+  @ParameterizedTest
+  @MethodSource("wireValues")
+  void preservesWireScalarsAndFlattenedValues(Object value, String expected) throws IOException {
+    var json = JsonMapper.builder().build();
+    try (var kit = McpServerKit.builder("wire-values", "1", McpEmptyContext.class).build()) {
+      assertEquals(
+          json.readTree(expected), json.readTree(kit.encode(new WireSample(value))).path("value"));
+    }
+  }
+
+  private static Stream<Arguments> wireValues() {
+    var json = JsonNodeFactory.instance;
+    return Stream.of(
+        Arguments.of(McpRole.USER, "\"user\""),
+        Arguments.of(McpRole.ASSISTANT, "\"assistant\""),
+        Arguments.of(McpLoggingLevel.WARNING, "\"warning\""),
+        Arguments.of(
+            new McpMetaObject(JsonTestValues.object(json.objectNode().putNull("present"))),
+            "{\"present\":null}"),
+        Arguments.of(new McpInputRequests(Map.of()), "{}"),
+        Arguments.of(new McpInputResponses(Map.of()), "{}"),
+        Arguments.of(
+            new JsonRpcNotification("example/notice", JsonTestValues.object(Map.of())),
+            "{\"jsonrpc\":\"2.0\",\"method\":\"example/notice\",\"params\":{}}"),
+        Arguments.of(
+            new McpRequestMetaObject(
+                McpClientCapabilities.mcpClientCapabilities().build(),
+                Optional.empty(),
+                Optional.of(McpLoggingLevel.INFO),
+                McpProtocol.REVISION,
+                JsonTestValues.optionalValue(Optional.empty()),
+                JsonTestValues.object(Map.of("example/entry", json.nullNode()))),
+            """
+            {
+              "io.modelcontextprotocol/clientCapabilities": {},
+              "io.modelcontextprotocol/logLevel": "info",
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "example/entry": null
+            }
+            """));
+  }
+
+  private static Object wireSample(Class<?> type) throws ReflectiveOperationException {
+    RecordComponent[] components = type.getRecordComponents();
+    Class<?>[] parameterTypes = new Class<?>[components.length];
+    Object[] arguments = new Object[components.length];
+    for (int index = 0; index < components.length; index++) {
+      RecordComponent component = components[index];
+      parameterTypes[index] = component.getType();
+      if (component.getType() == Optional.class) {
+        Type argument =
+            ((ParameterizedType) component.getGenericType()).getActualTypeArguments()[0];
+        arguments[index] =
+            Optional.ofNullable(
+                type == McpIcon.class && component.getName().equals("theme")
+                    ? "light"
+                    : sample(rawType(argument), new HashMap<>(), new LinkedHashSet<>()));
+      } else {
+        arguments[index] = sample(type, component, new HashMap<>(), new LinkedHashSet<>());
       }
-      assertTrue(javaFields.containsAll(schemaFields), definition + " fields " + schemaFields);
+    }
+    try {
+      return type.getDeclaredConstructor(parameterTypes).newInstance(arguments);
+    } catch (IllegalArgumentException | InvocationTargetException failure) {
+      throw new IllegalArgumentException(
+          "Cannot create wire sample for " + type.getName(), failure);
     }
   }
 
@@ -132,7 +209,8 @@ class McpProtocolModelTest {
 
   @Test
   void everyProtocolRecordDefensivelyCopiesMutableJsonComponents() throws Exception {
-    List<String> failures = new java.util.ArrayList<>();
+    List<String> failures = new ArrayList<>();
+    int checked = 0;
     for (Class<?> type : mappedRecordTypes()) {
       RecordComponent[] components = type.getRecordComponents();
       for (int target = 0; target < components.length; target++) {
@@ -140,35 +218,41 @@ class McpProtocolModelTest {
         if (!containsMutableJson(component)) {
           continue;
         }
-        ObjectNode supplied = mutableJson();
-        Object value = constructWith(type, target, supplied);
+        Map<String, Object> supplied = mutableJson();
+        Object value = constructWith(type, target, mutableComponentValue(component, supplied));
         if (value == null) {
+          if (type != JsonRpcRequest.class || !component.getName().equals("id")) {
+            failures.add(
+                type.getSimpleName() + "." + component.getName() + " rejects valid JSON fixture");
+          }
           continue;
         }
-
+        checked++;
         supplied.put("marker", "changed-input");
-        ObjectNode first = extractMutableJson(component.getAccessor().invoke(value));
+        ((List<Object>) supplied.get("nested")).set(0, "changed-nested-input");
+        Map<?, ?> first = extractMutableJson(component.getAccessor().invoke(value));
         String componentName = type.getSimpleName() + "." + component.getName();
-        if (!"original".equals(first.path("marker").textValue())) {
+        if (!"original".equals(first.get("marker"))
+            || !"original".equals(((List<?>) first.get("nested")).get(0))) {
           failures.add(componentName + " retains constructor input");
         }
-
-        first.put("marker", "changed-output");
-        ObjectNode second = extractMutableJson(component.getAccessor().invoke(value));
-        if (!"original".equals(second.path("marker").textValue())) {
-          failures.add(componentName + " exposes accessor output");
+        if (!first.containsKey("nil")
+            || first.get("nil") != null
+            || ((List<?>) first.get("nested")).get(1) != null) {
+          failures.add(componentName + " loses explicit null entries");
         }
-        if (first == second) {
-          failures.add(componentName + " returns the same mutable instance");
+        if (canMutateContainer(first) || canMutateContainer(first.get("nested"))) {
+          failures.add(componentName + " exposes accessor output");
         }
       }
     }
+    assertTrue(checked > 0, "The JSON-value audit must exercise public model fields");
     assertEquals(List.of(), failures);
   }
 
   @Test
   void everyProtocolRecordDefensivelyCopiesCollectionComponents() throws Exception {
-    List<String> failures = new java.util.ArrayList<>();
+    List<String> failures = new ArrayList<>();
     for (Class<?> type : mappedRecordTypes()) {
       RecordComponent[] components = type.getRecordComponents();
       for (int target = 0; target < components.length; target++) {
@@ -217,15 +301,19 @@ class McpProtocolModelTest {
   }
 
   private static boolean containsMutableJson(RecordComponent component) {
-    if (JsonNode.class.isAssignableFrom(component.getType())) {
+    Type type = component.getGenericType();
+    if (type instanceof ParameterizedType optional && optional.getRawType() == Optional.class) {
+      type = optional.getActualTypeArguments()[0];
+    }
+    if (type == Object.class) {
       return true;
     }
-    if (!(component.getGenericType() instanceof ParameterizedType parameterized)) {
+    if (!(type instanceof ParameterizedType container)) {
       return false;
     }
-    Type argument = parameterized.getActualTypeArguments()[0];
-    return argument instanceof Class<?> argumentType
-        && JsonNode.class.isAssignableFrom(argumentType);
+    Type argument = container.getActualTypeArguments()[container.getRawType() == Map.class ? 1 : 0];
+    return (container.getRawType() == Map.class || container.getRawType() == List.class)
+        && (argument == Object.class || argument instanceof WildcardType);
   }
 
   private static boolean containsMutableContainer(RecordComponent component) {
@@ -251,9 +339,7 @@ class McpProtocolModelTest {
       parameterTypes[index] = components[index].getType();
       arguments[index] =
           index == target
-              ? supplied instanceof ObjectNode
-                  ? mutableComponentValue(components[index], (ObjectNode) supplied)
-                  : supplied
+              ? supplied
               : sample(type, components[index], cache, new LinkedHashSet<>());
     }
     try {
@@ -266,21 +352,25 @@ class McpProtocolModelTest {
     }
   }
 
-  private static Object mutableComponentValue(RecordComponent component, ObjectNode supplied) {
-    if (JsonNode.class.isAssignableFrom(component.getType())) {
-      return supplied;
+  private static Object mutableComponentValue(
+      RecordComponent component, Map<String, Object> supplied) {
+    Type type = component.getGenericType();
+    boolean optional = component.getType() == Optional.class;
+    if (optional) {
+      type = ((ParameterizedType) type).getActualTypeArguments()[0];
     }
-    if (component.getType() == Optional.class) {
-      return Optional.of(supplied);
-    }
-    return List.of(supplied);
+    Object value =
+        type instanceof ParameterizedType container && container.getRawType() == List.class
+            ? List.of(supplied)
+            : supplied;
+    return optional ? Optional.of(value) : value;
   }
 
   private static Object mutableContainer(RecordComponent component) {
     boolean isMap =
         component.getType() == Map.class
             || (component.getType() == Optional.class && nestedRawType(component) == Map.class);
-    Object container = isMap ? new HashMap<>() : new java.util.ArrayList<>();
+    Object container = isMap ? new HashMap<>() : new ArrayList<>();
     return component.getType() == Optional.class ? Optional.of(container) : container;
   }
 
@@ -321,18 +411,26 @@ class McpProtocolModelTest {
     }
   }
 
-  private static ObjectNode extractMutableJson(Object value) {
+  private static Map<?, ?> extractMutableJson(Object value) {
     if (value instanceof Optional<?> optional) {
-      return (ObjectNode) optional.orElseThrow();
+      return extractMutableJson(optional.orElseThrow());
     }
     if (value instanceof List<?> values) {
-      return (ObjectNode) values.get(0);
+      return (Map<?, ?>) values.get(0);
     }
-    return (ObjectNode) value;
+    return (Map<?, ?>) value;
   }
 
-  private static ObjectNode mutableJson() {
-    return JsonNodeFactory.instance.objectNode().put("type", "object").put("marker", "original");
+  private static Map<String, Object> mutableJson() {
+    var values = new LinkedHashMap<String, Object>();
+    values.put("type", "object");
+    values.put("marker", "original");
+    values.put("nil", null);
+    var nested = new ArrayList<Object>();
+    nested.add("original");
+    nested.add(null);
+    values.put("nested", nested);
+    return values;
   }
 
   private static Set<String> schemaFields(JsonNode definitions, JsonNode definition) {
@@ -377,7 +475,10 @@ class McpProtocolModelTest {
     if (rawType == ArrayNode.class) {
       return JsonNodeFactory.instance.arrayNode();
     }
-    if (rawType == JsonNode.class || rawType == Object.class) {
+    if (rawType == Object.class) {
+      return "value";
+    }
+    if (rawType == JsonNode.class) {
       return JsonNodeFactory.instance.textNode("value");
     }
     if (rawType == Optional.class) {
@@ -462,6 +563,9 @@ class McpProtocolModelTest {
       Map<Class<?>, Object> cache,
       Set<Class<?>> visiting)
       throws ReflectiveOperationException {
+    if (owner == McpTool.class && component.getName().equals("inputSchema")) {
+      return Map.of("type", "object");
+    }
     if (component.getType() == String.class) {
       String prefix = component.getName().replaceAll("([a-z])([A-Z])", "$1_$2").toUpperCase() + "_";
       for (Field field : owner.getFields()) {

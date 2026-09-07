@@ -1,22 +1,19 @@
 package io.github.suppierk.mcp.protocol;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.LinkedHashMap;
 import org.junit.jupiter.api.Test;
 
 class McpMetaObjectTest {
   @Test
   void copiesMutableJsonValues() {
-    ObjectNode values = JsonNodeFactory.instance.objectNode().put("owner", "first");
+    var values = new LinkedHashMap<String, Object>();
+    values.put("owner", "first");
     McpMetaObject metadata = new McpMetaObject(values);
     values.put("owner", "changed");
-    ObjectNode returned = metadata.values();
-    returned.put("owner", "changed again");
-
-    assertEquals("first", metadata.values().path("owner").textValue());
-    assertNotSame(returned, metadata.values());
+    assertThrows(UnsupportedOperationException.class, () -> metadata.values().clear());
+    assertEquals("first", metadata.values().get("owner"));
   }
 }

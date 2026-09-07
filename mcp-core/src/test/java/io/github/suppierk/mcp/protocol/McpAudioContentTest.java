@@ -5,13 +5,15 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import io.github.suppierk.mcp.JsonTestValues;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class McpAudioContentTest {
   @Test
   void builderUsesTheStandardOptionalBehavior() {
-    McpMetaObject meta = new McpMetaObject(JsonNodeFactory.instance.objectNode());
+    McpMetaObject meta =
+        new McpMetaObject(JsonTestValues.object(JsonNodeFactory.instance.objectNode()));
     McpAnnotations annotations =
         new McpAnnotations(Optional.empty(), Optional.empty(), Optional.empty());
 

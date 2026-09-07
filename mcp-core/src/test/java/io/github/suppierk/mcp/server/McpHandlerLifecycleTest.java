@@ -6,12 +6,15 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.github.suppierk.mcp.JsonTestValues;
 import io.github.suppierk.mcp.protocol.JsonRpcErrorResponse;
 import io.github.suppierk.mcp.protocol.JsonRpcMessage;
 import io.github.suppierk.mcp.protocol.JsonRpcRequest;
 import io.github.suppierk.mcp.protocol.JsonRpcResultResponse;
 import io.github.suppierk.mcp.protocol.McpProgressNotification;
 import io.github.suppierk.mcp.protocol.McpProtocol;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -31,6 +34,7 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
@@ -65,7 +69,9 @@ class McpHandlerLifecycleTest {
     assertEquals(1, subscriber.messages.size());
     assertEquals(
         "done",
-        ((JsonRpcResultResponse) subscriber.messages.get(0)).result().path("value").textValue());
+        JsonTestValues.json(((JsonRpcResultResponse) subscriber.messages.get(0)).result())
+            .path("value")
+            .textValue());
     assertEquals(null, subscriber.termination.join());
   }
 
@@ -92,12 +98,16 @@ class McpHandlerLifecycleTest {
     assertEquals(List.of(), subscriber.messages);
 
     applicationFuture.complete(
-        new JsonRpcResultResponse(JSON.numberNode(2), JSON.objectNode().put("value", "async")));
+        new JsonRpcResultResponse(
+            JsonTestValues.value(JSON.numberNode(2)),
+            JsonTestValues.value(JSON.objectNode().put("value", "async"))));
 
     assertEquals(1, subscriber.messages.size());
     assertEquals(
         "async",
-        ((JsonRpcResultResponse) subscriber.messages.get(0)).result().path("value").textValue());
+        JsonTestValues.json(((JsonRpcResultResponse) subscriber.messages.get(0)).result())
+            .path("value")
+            .textValue());
     assertEquals(null, subscriber.termination.join());
   }
 
@@ -105,9 +115,9 @@ class McpHandlerLifecycleTest {
   void builderExposesOnlyExplicitSynchronousAndAsynchronousHandlerAdapters() {
     Set<String> methods =
         Arrays.stream(McpServerKit.Builder.class.getDeclaredMethods())
-            .filter(method -> java.lang.reflect.Modifier.isPublic(method.getModifiers()))
-            .map(java.lang.reflect.Method::getName)
-            .collect(java.util.stream.Collectors.toSet());
+            .filter(method -> Modifier.isPublic(method.getModifiers()))
+            .map(Method::getName)
+            .collect(Collectors.toSet());
 
     assertEquals(
         Set.of(
@@ -121,7 +131,6 @@ class McpHandlerLifecycleTest {
             "description",
             "icon",
             "instructions",
-            "mapper",
             "syncCompletion",
             "syncMethod",
             "syncPrompt",
@@ -230,10 +239,12 @@ class McpHandlerLifecycleTest {
     assertEquals(Optional.of(10.0), third.total());
     assertEquals(Optional.of(20.0), fourth.total());
     assertEquals(Optional.of("four"), fourth.message());
-    assertEquals("token-8", fourth.progressToken().textValue());
+    assertEquals("token-8", JsonTestValues.json(fourth.progressToken()).textValue());
     assertEquals(
         "done",
-        ((JsonRpcResultResponse) subscriber.messages.get(4)).result().path("value").textValue());
+        JsonTestValues.json(((JsonRpcResultResponse) subscriber.messages.get(4)).result())
+            .path("value")
+            .textValue());
   }
 
   @Test
@@ -264,7 +275,9 @@ class McpHandlerLifecycleTest {
     assertEquals(3, subscriber.messages.size());
     assertEquals(
         "done",
-        ((JsonRpcResultResponse) subscriber.messages.get(2)).result().path("value").textValue());
+        JsonTestValues.json(((JsonRpcResultResponse) subscriber.messages.get(2)).result())
+            .path("value")
+            .textValue());
     assertEquals(null, subscriber.termination.join());
   }
 
@@ -290,7 +303,9 @@ class McpHandlerLifecycleTest {
     assertEquals(1.0, ((McpProgressNotification) subscriber.messages.get(0)).params().progress());
     assertEquals(
         "done",
-        ((JsonRpcResultResponse) subscriber.messages.get(1)).result().path("value").textValue());
+        JsonTestValues.json(((JsonRpcResultResponse) subscriber.messages.get(1)).result())
+            .path("value")
+            .textValue());
     assertEquals(null, subscriber.termination.join());
   }
 
@@ -485,7 +500,11 @@ class McpHandlerLifecycleTest {
     ObjectNode metadata = params.putObject("_meta");
     metadata.put(McpProtocol.PROTOCOL_VERSION_KEY, McpProtocol.REVISION);
     metadata.putObject(McpProtocol.CLIENT_CAPABILITIES_KEY);
-    var request = new JsonRpcRequest(JSON.textNode(requestId), "logged/method", params);
+    var request =
+        new JsonRpcRequest(
+            JsonTestValues.value(JSON.textNode(requestId)),
+            "logged/method",
+            JsonTestValues.object(params));
     var kit =
         McpServerKit.builder("lifecycle", "1", McpEmptyContext.class)
             .syncMethod(
@@ -595,8 +614,9 @@ class McpHandlerLifecycleTest {
     assertEquals(true, rejectedCalls <= 1);
     assertEquals(
         "done",
-        ((JsonRpcResultResponse) subscriber.messages.get(subscriber.messages.size() - 1))
-            .result()
+        JsonTestValues.json(
+                ((JsonRpcResultResponse) subscriber.messages.get(subscriber.messages.size() - 1))
+                    .result())
             .path("value")
             .textValue());
   }
@@ -678,7 +698,9 @@ class McpHandlerLifecycleTest {
   }
 
   private static JsonRpcResultResponse response(JsonRpcRequest request, String value) {
-    return new JsonRpcResultResponse(request.id(), JSON.objectNode().put("value", value));
+    return new JsonRpcResultResponse(
+        JsonTestValues.value(request.id()),
+        JsonTestValues.value(JSON.objectNode().put("value", value)));
   }
 
   private static JsonRpcRequest request(int id, String method) {
@@ -686,7 +708,8 @@ class McpHandlerLifecycleTest {
     ObjectNode metadata = params.putObject("_meta");
     metadata.put(McpProtocol.PROTOCOL_VERSION_KEY, McpProtocol.REVISION);
     metadata.putObject(McpProtocol.CLIENT_CAPABILITIES_KEY);
-    return new JsonRpcRequest(JSON.numberNode(id), method, params);
+    return new JsonRpcRequest(
+        JsonTestValues.value(JSON.numberNode(id)), method, JsonTestValues.object(params));
   }
 
   private static JsonRpcRequest request(int id, String method, String progressToken) {
@@ -695,7 +718,8 @@ class McpHandlerLifecycleTest {
     metadata.put(McpProtocol.PROTOCOL_VERSION_KEY, McpProtocol.REVISION);
     metadata.putObject(McpProtocol.CLIENT_CAPABILITIES_KEY);
     metadata.put("progressToken", progressToken);
-    return new JsonRpcRequest(JSON.numberNode(id), method, params);
+    return new JsonRpcRequest(
+        JsonTestValues.value(JSON.numberNode(id)), method, JsonTestValues.object(params));
   }
 
   private static final class ManualSubscriber implements Flow.Subscriber<JsonRpcMessage> {

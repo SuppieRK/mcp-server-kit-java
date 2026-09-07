@@ -1,7 +1,7 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -35,7 +35,7 @@ public record McpCreateMessageRequestParams(
     Optional<String> includeContext,
     Long maxTokens,
     List<McpSamplingMessage> messages,
-    Optional<ObjectNode> metadata,
+    Optional<Map<String, ?>> metadata,
     Optional<McpModelPreferences> modelPreferences,
     Optional<List<String>> stopSequences,
     Optional<String> systemPrompt,
@@ -61,7 +61,7 @@ public record McpCreateMessageRequestParams(
    *
    * @return the copied metadata
    */
-  public Optional<ObjectNode> metadata() {
+  public Optional<Map<String, ?>> metadata() {
     return McpProtocol.copy(metadata);
   }
 
@@ -79,7 +79,7 @@ public record McpCreateMessageRequestParams(
     private Optional<String> includeContext = Optional.empty();
     private Long maxTokens;
     private List<McpSamplingMessage> messages;
-    private Optional<ObjectNode> metadata = Optional.empty();
+    private Optional<Map<String, ?>> metadata = Optional.empty();
     private Optional<McpModelPreferences> modelPreferences = Optional.empty();
     private Optional<List<String>> stopSequences = Optional.empty();
     private Optional<String> systemPrompt = Optional.empty();
@@ -138,7 +138,7 @@ public record McpCreateMessageRequestParams(
      * @param metadata the optional value
      * @return this builder
      */
-    public Builder metadata(Optional<ObjectNode> metadata) {
+    public Builder metadata(Optional<Map<String, ?>> metadata) {
       this.metadata = metadata;
       return this;
     }
@@ -149,7 +149,7 @@ public record McpCreateMessageRequestParams(
      * @param metadata the value, or {@code null} to clear it
      * @return this builder
      */
-    public Builder metadata(ObjectNode metadata) {
+    public Builder metadata(Map<String, ?> metadata) {
       return metadata(Optional.ofNullable(metadata));
     }
 

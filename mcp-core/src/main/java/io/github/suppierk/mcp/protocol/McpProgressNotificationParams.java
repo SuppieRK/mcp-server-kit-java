@@ -1,7 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -18,17 +16,17 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpProgressNotificationParams(
-    @JsonProperty("_meta") Optional<McpNotificationMetaObject> meta,
+    Optional<McpNotificationMetaObject> meta,
     Optional<String> message,
     Double progress,
-    JsonNode progressToken,
+    Object progressToken,
     Optional<Double> total) {
   /** Validates and copies the protocol fields. */
   public McpProgressNotificationParams {
     Objects.requireNonNull(meta, "meta");
     Objects.requireNonNull(message, "message");
     Objects.requireNonNull(progress, "progress");
-    progressToken = Objects.requireNonNull(progressToken, "progressToken").deepCopy();
+    progressToken = McpProtocol.copy(Objects.requireNonNull(progressToken, "progressToken"));
     Objects.requireNonNull(total, "total");
   }
 
@@ -37,7 +35,7 @@ public record McpProgressNotificationParams(
    *
    * @return the copied token
    */
-  public JsonNode progressToken() {
+  public Object progressToken() {
     return McpProtocol.copy(progressToken);
   }
 
@@ -55,7 +53,7 @@ public record McpProgressNotificationParams(
     private Optional<McpNotificationMetaObject> meta = Optional.empty();
     private Optional<String> message = Optional.empty();
     private Double progress;
-    private JsonNode progressToken;
+    private Object progressToken;
     private Optional<Double> total = Optional.empty();
 
     private Builder() {}
@@ -119,7 +117,7 @@ public record McpProgressNotificationParams(
      * @param progressToken the value
      * @return this builder
      */
-    public Builder progressToken(JsonNode progressToken) {
+    public Builder progressToken(Object progressToken) {
       this.progressToken = progressToken;
       return this;
     }

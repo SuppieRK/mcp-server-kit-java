@@ -1,8 +1,6 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -16,17 +14,17 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpCompleteRequestParams(
-    @JsonProperty("_meta") McpRequestMetaObject meta,
-    ObjectNode argument,
-    Optional<ObjectNode> context,
-    JsonNode ref)
+    McpRequestMetaObject meta,
+    Map<String, ?> argument,
+    Optional<Map<String, ?>> context,
+    Object ref)
     implements McpRequestParameters {
   /** Validates and copies the protocol fields. */
   public McpCompleteRequestParams {
     Objects.requireNonNull(meta, "meta");
-    argument = Objects.requireNonNull(argument, "argument").deepCopy();
+    argument = McpProtocol.copy(Objects.requireNonNull(argument, "argument"));
     context = McpProtocol.copy(context);
-    ref = Objects.requireNonNull(ref, "ref").deepCopy();
+    ref = McpProtocol.copy(Objects.requireNonNull(ref, "ref"));
   }
 
   /**
@@ -34,7 +32,7 @@ public record McpCompleteRequestParams(
    *
    * @return the copied argument
    */
-  public ObjectNode argument() {
+  public Map<String, ?> argument() {
     return McpProtocol.copy(argument);
   }
 
@@ -43,7 +41,7 @@ public record McpCompleteRequestParams(
    *
    * @return the copied context
    */
-  public Optional<ObjectNode> context() {
+  public Optional<Map<String, ?>> context() {
     return McpProtocol.copy(context);
   }
 
@@ -52,7 +50,7 @@ public record McpCompleteRequestParams(
    *
    * @return the copied target
    */
-  public JsonNode ref() {
+  public Object ref() {
     return McpProtocol.copy(ref);
   }
 
@@ -68,9 +66,9 @@ public record McpCompleteRequestParams(
   /** Builds {@link McpCompleteRequestParams} values. */
   public static final class Builder {
     private McpRequestMetaObject meta;
-    private ObjectNode argument;
-    private Optional<ObjectNode> context = Optional.empty();
-    private JsonNode ref;
+    private Map<String, ?> argument;
+    private Optional<Map<String, ?>> context = Optional.empty();
+    private Object ref;
 
     private Builder() {}
 
@@ -91,7 +89,7 @@ public record McpCompleteRequestParams(
      * @param argument the value
      * @return this builder
      */
-    public Builder argument(ObjectNode argument) {
+    public Builder argument(Map<String, ?> argument) {
       this.argument = argument;
       return this;
     }
@@ -102,7 +100,7 @@ public record McpCompleteRequestParams(
      * @param context the optional value
      * @return this builder
      */
-    public Builder context(Optional<ObjectNode> context) {
+    public Builder context(Optional<Map<String, ?>> context) {
       this.context = context;
       return this;
     }
@@ -113,7 +111,7 @@ public record McpCompleteRequestParams(
      * @param context the value, or {@code null} to clear it
      * @return this builder
      */
-    public Builder context(ObjectNode context) {
+    public Builder context(Map<String, ?> context) {
       return context(Optional.ofNullable(context));
     }
 
@@ -123,7 +121,7 @@ public record McpCompleteRequestParams(
      * @param ref the value
      * @return this builder
      */
-    public Builder ref(JsonNode ref) {
+    public Builder ref(Object ref) {
       this.ref = ref;
       return this;
     }

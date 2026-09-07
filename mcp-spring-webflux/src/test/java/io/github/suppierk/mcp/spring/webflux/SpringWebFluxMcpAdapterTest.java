@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import io.github.suppierk.mcp.protocol.JsonRpcResultResponse;
 import io.github.suppierk.mcp.protocol.McpProtocol;
 import io.github.suppierk.mcp.server.McpEmptyContext;
@@ -13,17 +12,21 @@ import io.github.suppierk.mcp.server.McpHandlerContext;
 import io.github.suppierk.mcp.server.McpServerKit;
 import io.github.suppierk.mcp.transport.http.StreamableHttpMcpTransport;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.codec.HttpMessageWriter;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.reactive.function.server.MockServerRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
 import org.springframework.web.reactive.function.server.HandlerStrategies;
 import org.springframework.web.reactive.function.server.ServerResponse;
+import org.springframework.web.reactive.result.view.ViewResolver;
 import reactor.core.publisher.Mono;
 
 class SpringWebFluxMcpAdapterTest {
@@ -112,14 +115,12 @@ class SpringWebFluxMcpAdapterTest {
     ServerResponse.Context responseContext =
         new ServerResponse.Context() {
           @Override
-          public java.util.List<org.springframework.http.codec.HttpMessageWriter<?>>
-              messageWriters() {
+          public List<HttpMessageWriter<?>> messageWriters() {
             return strategies.messageWriters();
           }
 
           @Override
-          public java.util.List<org.springframework.web.reactive.result.view.ViewResolver>
-              viewResolvers() {
+          public List<ViewResolver> viewResolvers() {
             return strategies.viewResolvers();
           }
         };
@@ -144,8 +145,7 @@ class SpringWebFluxMcpAdapterTest {
                 (applicationContext, call, handlerContext) -> {
                   seen.set(applicationContext);
                   return new JsonRpcResultResponse(
-                      call.id(),
-                      JsonNodeFactory.instance.objectNode().put("value", applicationContext.value));
+                      call.id(), Map.of("value", applicationContext.value));
                 })
             .build();
     var contextAdapter = new SpringWebFluxMcpAdapter<>(serverKit);

@@ -1,8 +1,5 @@
 package io.github.suppierk.mcp.transport.http;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.NullNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.github.suppierk.mcp.protocol.JsonRpcErrorResponse;
 import io.github.suppierk.mcp.protocol.JsonRpcMessage;
 import io.github.suppierk.mcp.protocol.JsonRpcNotification;
@@ -12,6 +9,7 @@ import io.github.suppierk.mcp.protocol.McpCallToolRequestParams;
 import io.github.suppierk.mcp.protocol.McpClientNotification;
 import io.github.suppierk.mcp.protocol.McpClientRequest;
 import io.github.suppierk.mcp.protocol.McpGetPromptRequestParams;
+import io.github.suppierk.mcp.protocol.McpJsonNull;
 import io.github.suppierk.mcp.protocol.McpProtocol;
 import io.github.suppierk.mcp.protocol.McpReadResourceRequestParams;
 import io.github.suppierk.mcp.protocol.McpRequestParameters;
@@ -21,12 +19,14 @@ import io.github.suppierk.mcp.server.McpInternalException;
 import io.github.suppierk.mcp.server.McpInvalidRequestException;
 import io.github.suppierk.mcp.server.McpMethodNotFoundException;
 import io.github.suppierk.mcp.server.McpServerKit;
+import java.math.BigDecimal;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
@@ -37,6 +37,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Flow;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Implements the framework-neutral MCP Streamable HTTP binding.
@@ -47,6 +49,8 @@ import java.util.concurrent.Flow;
  *     Streamable HTTP transport</a>
  */
 public final class StreamableHttpMcpTransport<C> {
+  private static final Pattern JSON_NUMBER =
+      Pattern.compile("-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?");
   private final McpServerKit<C> serverKit;
   private final Set<Origin> allowedOrigins;
 
@@ -70,7 +74,7 @@ public final class StreamableHttpMcpTransport<C> {
     this.allowedOrigins =
         Objects.requireNonNull(allowedOrigins, "allowedOrigins").stream()
             .map(StreamableHttpMcpTransport::configuredOrigin)
-            .collect(java.util.stream.Collectors.toUnmodifiableSet());
+            .collect(Collectors.toUnmodifiableSet());
   }
 
   /**
@@ -113,13 +117,15 @@ public final class StreamableHttpMcpTransport<C> {
               .params()
               .meta()
               .progressToken()
-              .filter(token -> !token.isNull() && !token.isMissingNode())
+              .filter(token -> token != McpJsonNull.INSTANCE)
               .isPresent();
     }
     if (message instanceof JsonRpcRequest request) {
-      JsonNode metadata = request.params().get("_meta");
+      Object metadata = request.params().get("_meta");
       return McpSubscriptionsListenRequest.METHOD.equals(request.method())
-          || (metadata != null && metadata.hasNonNull("progressToken"));
+          || (metadata instanceof Map<?, ?> values
+              && values.get("progressToken") != null
+              && values.get("progressToken") != McpJsonNull.INSTANCE);
     }
     return false;
   }
@@ -218,10 +224,7 @@ public final class StreamableHttpMcpTransport<C> {
                 : message instanceof McpClientNotification notification
                     ? notification.method()
                     : ((JsonRpcNotification) message).method();
-    JsonNode params =
-        message instanceof JsonRpcRequest call
-            ? call.params()
-            : message instanceof JsonRpcNotification notification ? notification.params() : null;
+    Map<String, ?> params = message instanceof JsonRpcRequest call ? call.params() : null;
     if (!request.header("Mcp-Method").equals(method)) {
       return protocolError(
           400, McpHeaderMismatchException.CODE, "Header and body method do not agree");
@@ -257,57 +260,77 @@ public final class StreamableHttpMcpTransport<C> {
         || !(call.params() instanceof McpCallToolRequestParams tool)) {
       return null;
     }
-    Optional<ObjectNode> inputSchema = serverKit.toolInputSchema(tool.name());
+    Optional<Map<String, ?>> inputSchema = serverKit.toolInputSchema(tool.name());
     if (inputSchema.isEmpty()) {
       return null;
     }
     ArrayList<HeaderParameter> declarations = new ArrayList<>();
     collectHeaderParameters(inputSchema.get(), List.of(), declarations);
-    JsonNode arguments = tool.arguments().orElse(null);
+    Object arguments = tool.arguments().orElse(null);
     for (HeaderParameter declaration : declarations) {
       List<String> values = request.headerValues("Mcp-Param-" + declaration.headerName());
-      JsonNode bodyValue = valueAt(arguments, declaration.path());
-      if (bodyValue == null || bodyValue.isNull()) {
+      Object bodyValue = valueAt(arguments, declaration.path());
+      if (bodyValue == null || bodyValue == McpJsonNull.INSTANCE) {
         if (!values.isEmpty()) {
           return headerMismatch("Header exists without a body parameter");
         }
       } else if (values.size() != 1
-          || !Objects.equals(decodeHeaderValue(values.get(0)), bodyValue.asText())) {
+          || !matchesHeaderValue(decodeHeaderValue(values.get(0)), bodyValue)) {
         return headerMismatch("Header and body parameter do not agree");
       }
     }
     return null;
   }
 
+  /** Compares numbers by exact value, independently of decimal scale or exponent formatting. */
+  private static boolean matchesHeaderValue(String headerValue, Object bodyValue) {
+    if (bodyValue instanceof Number) {
+      if (headerValue == null || !JSON_NUMBER.matcher(headerValue).matches()) {
+        return false;
+      }
+      try {
+        return new BigDecimal(headerValue).compareTo(new BigDecimal(bodyValue.toString())) == 0;
+      } catch (NumberFormatException exception) {
+        return false;
+      }
+    }
+    return Objects.equals(
+        headerValue,
+        bodyValue instanceof String || bodyValue instanceof Boolean ? bodyValue.toString() : "");
+  }
+
   /** Collects header declarations reachable through JSON Schema properties. */
   private static void collectHeaderParameters(
-      JsonNode schema, List<String> path, List<HeaderParameter> declarations) {
-    if (!(schema.get("properties") instanceof ObjectNode properties)) {
+      Object schema, List<String> path, List<HeaderParameter> declarations) {
+    if (!(schema instanceof Map<?, ?> object)
+        || !(object.get("properties") instanceof Map<?, ?> properties)) {
       return;
     }
     properties
-        .properties()
+        .entrySet()
         .forEach(
             property -> {
               ArrayList<String> propertyPath = new ArrayList<>(path);
-              propertyPath.add(property.getKey());
-              JsonNode headerName = property.getValue().get("x-mcp-header");
-              if (headerName != null && headerName.isTextual()) {
-                declarations.add(
-                    new HeaderParameter(headerName.textValue(), List.copyOf(propertyPath)));
+              propertyPath.add((String) property.getKey());
+              Object headerName =
+                  property.getValue() instanceof Map<?, ?> fields
+                      ? fields.get("x-mcp-header")
+                      : null;
+              if (headerName instanceof String name) {
+                declarations.add(new HeaderParameter(name, List.copyOf(propertyPath)));
               }
               collectHeaderParameters(property.getValue(), propertyPath, declarations);
             });
   }
 
   /** Gets one argument at its exact declared property path. */
-  private static JsonNode valueAt(JsonNode arguments, List<String> path) {
-    JsonNode value = arguments;
+  private static Object valueAt(Object arguments, List<String> path) {
+    Object value = arguments;
     for (String property : path) {
-      if (value == null) {
+      if (!(value instanceof Map<?, ?> object)) {
         return null;
       }
-      value = value.get(property);
+      value = object.get(property);
     }
     return value;
   }
@@ -360,9 +383,11 @@ public final class StreamableHttpMcpTransport<C> {
   }
 
   /** Gets the protocol version from generic parameters. */
-  private static String bodyVersion(JsonNode params) {
-    JsonNode metadata = params.get("_meta");
-    return metadata == null ? null : metadata.path(McpProtocol.PROTOCOL_VERSION_KEY).textValue();
+  private static String bodyVersion(Map<String, ?> params) {
+    Object metadata = params.get("_meta");
+    Object version =
+        metadata instanceof Map<?, ?> object ? object.get(McpProtocol.PROTOCOL_VERSION_KEY) : null;
+    return version instanceof String text ? text : null;
   }
 
   /** Gets a protocol declaration name from typed parameters. */
@@ -455,7 +480,7 @@ public final class StreamableHttpMcpTransport<C> {
   /** Creates one encoded protocol error. */
   private HttpJsonResponse protocolError(int status, int code, String message) {
     JsonRpcErrorResponse response =
-        new JsonRpcErrorResponse(NullNode.getInstance(), code, message, Optional.empty());
+        new JsonRpcErrorResponse(McpJsonNull.INSTANCE, code, message, Optional.empty());
     return new HttpJsonResponse(
         status, Map.of("Content-Type", "application/json"), serverKit.encode(response));
   }
@@ -471,7 +496,7 @@ public final class StreamableHttpMcpTransport<C> {
   private static boolean accepts(HttpMcpRequest request, String mediaType) {
     String expected = mediaType.toLowerCase(Locale.ROOT);
     return request.headerValues("Accept").stream()
-        .flatMap(value -> java.util.Arrays.stream(value.split(",")))
+        .flatMap(value -> Arrays.stream(value.split(",")))
         .map(value -> value.trim().toLowerCase(Locale.ROOT))
         .map(value -> value.split(";", 2)[0].trim())
         .anyMatch(value -> value.equals("*/*") || value.equals(expected));

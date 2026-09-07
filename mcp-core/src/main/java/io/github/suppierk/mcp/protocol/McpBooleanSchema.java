@@ -1,6 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -13,9 +12,7 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public record McpBooleanSchema(
-    @JsonProperty("default") Optional<Boolean> defaultValue,
-    Optional<String> description,
-    Optional<String> title)
+    Optional<Boolean> defaultValue, Optional<String> description, Optional<String> title)
     implements McpPrimitiveSchemaDefinition {
 
   private static final String TYPE = "boolean";
@@ -32,7 +29,6 @@ public record McpBooleanSchema(
    *
    * @return the constant value
    */
-  @JsonProperty("type")
   public String type() {
     return TYPE;
   }

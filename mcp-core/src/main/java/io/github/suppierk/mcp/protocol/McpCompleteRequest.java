@@ -1,7 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Objects;
 
 /**
@@ -11,7 +9,7 @@ import java.util.Objects;
  * @param params the method parameters
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
-public record McpCompleteRequest(JsonNode id, McpCompleteRequestParams params)
+public record McpCompleteRequest(Object id, McpCompleteRequestParams params)
     implements McpClientRequest {
 
   /** The request wire-method name. */
@@ -19,7 +17,7 @@ public record McpCompleteRequest(JsonNode id, McpCompleteRequestParams params)
 
   /** Validates and copies the protocol fields. */
   public McpCompleteRequest {
-    id = Objects.requireNonNull(id, "id").deepCopy();
+    id = McpProtocol.copy(Objects.requireNonNull(id, "id"));
     Objects.requireNonNull(params, "params");
   }
 
@@ -28,7 +26,7 @@ public record McpCompleteRequest(JsonNode id, McpCompleteRequestParams params)
    *
    * @return the copied identifier
    */
-  public JsonNode id() {
+  public Object id() {
     return McpProtocol.copy(id);
   }
 
@@ -37,7 +35,6 @@ public record McpCompleteRequest(JsonNode id, McpCompleteRequestParams params)
    *
    * @return the constant value
    */
-  @JsonProperty("jsonrpc")
   public String jsonrpc() {
     return McpProtocol.JSON_RPC_VERSION;
   }
@@ -47,7 +44,6 @@ public record McpCompleteRequest(JsonNode id, McpCompleteRequestParams params)
    *
    * @return the constant value
    */
-  @JsonProperty("method")
   public String method() {
     return METHOD;
   }
@@ -63,7 +59,7 @@ public record McpCompleteRequest(JsonNode id, McpCompleteRequestParams params)
 
   /** Builds {@link McpCompleteRequest} values. */
   public static final class Builder {
-    private JsonNode id;
+    private Object id;
     private McpCompleteRequestParams params;
 
     private Builder() {}
@@ -74,7 +70,7 @@ public record McpCompleteRequest(JsonNode id, McpCompleteRequestParams params)
      * @param id the value
      * @return this builder
      */
-    public Builder id(JsonNode id) {
+    public Builder id(Object id) {
       this.id = id;
       return this;
     }

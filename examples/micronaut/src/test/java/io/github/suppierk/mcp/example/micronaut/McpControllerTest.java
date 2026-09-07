@@ -9,18 +9,27 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.github.suppierk.mcp.protocol.McpCallToolRequest;
 import io.github.suppierk.mcp.protocol.McpListToolsRequest;
 import io.github.suppierk.mcp.protocol.McpProtocol;
+import io.micronaut.core.io.buffer.ByteBuffer;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.client.StreamingHttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
+import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
 
 @MicronautTest
 class McpControllerTest {
@@ -34,30 +43,29 @@ class McpControllerTest {
 
   @Inject
   @Client("/")
-  private io.micronaut.http.client.StreamingHttpClient streamingClient;
+  private StreamingHttpClient streamingClient;
 
   @Test
   void receivesASubscriptionAcknowledgementBeforeTheStreamCloses() throws Exception {
     var params = JSON.createObjectNode();
     params.putObject("notifications").put("toolsListChanged", true);
-    var first = new java.util.concurrent.CompletableFuture<HttpResponse<byte[]>>();
-    var received = new java.io.ByteArrayOutputStream();
-    var subscription =
-        new java.util.concurrent.atomic.AtomicReference<org.reactivestreams.Subscription>();
+    var first = new CompletableFuture<HttpResponse<byte[]>>();
+    var received = new ByteArrayOutputStream();
+    var subscription = new AtomicReference<Subscription>();
     streamingClient
         .exchangeStream(
             request("/mcp/public", "subscriptions/listen", params)
                 .accept(MediaType.APPLICATION_JSON_TYPE, MediaType.TEXT_EVENT_STREAM_TYPE))
         .subscribe(
-            new org.reactivestreams.Subscriber<>() {
-              public void onSubscribe(org.reactivestreams.Subscription value) {
+            new Subscriber<>() {
+              public void onSubscribe(Subscription value) {
                 subscription.set(value);
                 value.request(Long.MAX_VALUE);
               }
 
-              public void onNext(HttpResponse<io.micronaut.core.io.buffer.ByteBuffer<?>> response) {
+              public void onNext(HttpResponse<ByteBuffer<?>> response) {
                 received.writeBytes(response.body().toByteArray());
-                if (received.toString(java.nio.charset.StandardCharsets.UTF_8).contains("\n\n")) {
+                if (received.toString(StandardCharsets.UTF_8).contains("\n\n")) {
                   first.complete(response.toMutableResponse().body(received.toByteArray()));
                 }
               }
@@ -69,11 +77,11 @@ class McpControllerTest {
               public void onComplete() {}
             });
     try {
-      var response = first.get(30, java.util.concurrent.TimeUnit.SECONDS);
+      var response = first.get(30, TimeUnit.SECONDS);
       assertEquals(HttpStatus.OK, response.getStatus());
       assertEquals(MediaType.TEXT_EVENT_STREAM_TYPE, response.getContentType().orElseThrow());
       String data =
-          new String(response.body(), java.nio.charset.StandardCharsets.UTF_8)
+          new String(response.body(), StandardCharsets.UTF_8)
               .lines()
               .filter(line -> line.startsWith("data: "))
               .findFirst()

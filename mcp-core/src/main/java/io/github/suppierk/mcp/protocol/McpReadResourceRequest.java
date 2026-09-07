@@ -1,7 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Objects;
 
 /**
@@ -11,7 +9,7 @@ import java.util.Objects;
  * @param params the method parameters
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
-public record McpReadResourceRequest(JsonNode id, McpReadResourceRequestParams params)
+public record McpReadResourceRequest(Object id, McpReadResourceRequestParams params)
     implements McpClientRequest {
 
   /** The request wire-method name. */
@@ -19,7 +17,7 @@ public record McpReadResourceRequest(JsonNode id, McpReadResourceRequestParams p
 
   /** Validates and copies the protocol fields. */
   public McpReadResourceRequest {
-    id = Objects.requireNonNull(id, "id").deepCopy();
+    id = McpProtocol.copy(Objects.requireNonNull(id, "id"));
     Objects.requireNonNull(params, "params");
   }
 
@@ -28,7 +26,7 @@ public record McpReadResourceRequest(JsonNode id, McpReadResourceRequestParams p
    *
    * @return the copied identifier
    */
-  public JsonNode id() {
+  public Object id() {
     return McpProtocol.copy(id);
   }
 
@@ -37,7 +35,6 @@ public record McpReadResourceRequest(JsonNode id, McpReadResourceRequestParams p
    *
    * @return the constant value
    */
-  @JsonProperty("jsonrpc")
   public String jsonrpc() {
     return McpProtocol.JSON_RPC_VERSION;
   }
@@ -47,7 +44,6 @@ public record McpReadResourceRequest(JsonNode id, McpReadResourceRequestParams p
    *
    * @return the constant value
    */
-  @JsonProperty("method")
   public String method() {
     return METHOD;
   }
@@ -63,7 +59,7 @@ public record McpReadResourceRequest(JsonNode id, McpReadResourceRequestParams p
 
   /** Builds {@link McpReadResourceRequest} values. */
   public static final class Builder {
-    private JsonNode id;
+    private Object id;
     private McpReadResourceRequestParams params;
 
     private Builder() {}
@@ -74,7 +70,7 @@ public record McpReadResourceRequest(JsonNode id, McpReadResourceRequestParams p
      * @param id the value
      * @return this builder
      */
-    public Builder id(JsonNode id) {
+    public Builder id(Object id) {
       this.id = id;
       return this;
     }

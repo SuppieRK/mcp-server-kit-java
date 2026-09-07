@@ -1,7 +1,5 @@
 package io.github.suppierk.mcp.example.javalin;
 
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.github.suppierk.mcp.javalin.JavalinMcpAdapter;
 import io.github.suppierk.mcp.protocol.McpCallToolResult;
 import io.github.suppierk.mcp.protocol.McpTextContent;
@@ -88,11 +86,8 @@ public final class JavalinExampleApplication {
   }
 
   /** Creates a closed schema for a tool that accepts no arguments. */
-  private static ObjectNode emptyInputSchema() {
-    return JsonNodeFactory.instance
-        .objectNode()
-        .put("type", "object")
-        .put("additionalProperties", false);
+  private static Map<String, ?> emptyInputSchema() {
+    return Map.of("type", "object", "additionalProperties", false);
   }
 
   /** Creates one successful text tool result. */

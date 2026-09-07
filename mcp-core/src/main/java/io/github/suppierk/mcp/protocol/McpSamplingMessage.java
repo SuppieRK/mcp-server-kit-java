@@ -1,7 +1,5 @@
 package io.github.suppierk.mcp.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -13,12 +11,11 @@ import java.util.Optional;
  * @param role the message role
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
-public record McpSamplingMessage(
-    @JsonProperty("_meta") Optional<McpMetaObject> meta, JsonNode content, McpRole role) {
+public record McpSamplingMessage(Optional<McpMetaObject> meta, Object content, McpRole role) {
   /** Validates and copies the protocol fields. */
   public McpSamplingMessage {
     Objects.requireNonNull(meta, "meta");
-    content = Objects.requireNonNull(content, "content").deepCopy();
+    content = McpProtocol.copy(Objects.requireNonNull(content, "content"));
     Objects.requireNonNull(role, "role");
   }
 
@@ -27,7 +24,7 @@ public record McpSamplingMessage(
    *
    * @return the copied content
    */
-  public JsonNode content() {
+  public Object content() {
     return McpProtocol.copy(content);
   }
 
@@ -43,7 +40,7 @@ public record McpSamplingMessage(
   /** Builds {@link McpSamplingMessage} values. */
   public static final class Builder {
     private Optional<McpMetaObject> meta = Optional.empty();
-    private JsonNode content;
+    private Object content;
     private McpRole role;
 
     private Builder() {}
@@ -75,7 +72,7 @@ public record McpSamplingMessage(
      * @param content the value
      * @return this builder
      */
-    public Builder content(JsonNode content) {
+    public Builder content(Object content) {
       this.content = content;
       return this;
     }
