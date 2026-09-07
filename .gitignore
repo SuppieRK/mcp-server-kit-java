@@ -42,8 +42,16 @@ out/
 ### macOS ###
 .DS_Store
 
-### OpenSpec ###
-/openspec/
-
 ### Codex ###
 /.codex/
+
+### cmdshape ###
+/.cmdshape/
+
+### Local AI workflow ###
+/AGENTS.md
+/.agents/
+/docs/
+/.scratch/
+/skills-lock.json
+CONTEXT.md

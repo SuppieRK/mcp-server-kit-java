@@ -1,0 +1,40 @@
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    groups:
+      json:
+        patterns:
+          - com.fasterxml.jackson*
+          - com.networknt*
+      frameworks:
+        patterns:
+          - org.springframework*
+          - io.javalin*
+          - io.quarkus*
+          - io.micronaut*
+      test:
+        patterns:
+          - org.junit*
+      build-quality:
+        patterns:
+          - com.diffplug*
+          - com.puppycrawl*
+          - com.vanniktech*
+          - me.champeau*
+          - org.jacoco*
+          - org.sonarqube*
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      github-actions:
+        patterns:
+          - '*'

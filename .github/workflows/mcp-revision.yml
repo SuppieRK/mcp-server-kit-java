@@ -1,0 +1,39 @@
+name: Check MCP revision
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '15 4 * * *'
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Compare final MCP revisions
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          current=$(sed -n 's/^MCP_REVISION=//p' gradle.properties)
+          latest=$(gh api repos/modelcontextprotocol/modelcontextprotocol/contents/docs/specification \
+            --jq '[.[].name | select(test("^[0-9]{4}-[0-9]{2}-[0-9]{2}$"))] | sort | last')
+          if [[ "$current" == "$latest" ]]; then
+            exit 0
+          fi
+
+          title='MCP specification update available'
+          body="The latest final MCP revision is \`$latest\`. This project uses \`$current\`.
+
+          Update the pinned schema, checksum, implementation, tests, documentation, and version prefix."
+          issue=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [[ -n "$issue" ]]; then
+            gh issue edit "$issue" --title "$title" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi

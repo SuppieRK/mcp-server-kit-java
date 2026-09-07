@@ -1,0 +1,94 @@
+name: Publish to Maven Central
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - name: Validate the Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v6.2.0
+
+      - name: Validate the release tag
+        shell: bash
+        run: |
+          version=$(sed -n 's/^VERSION_NAME=//p' gradle.properties)
+          expected="v$version"
+          if [[ "${GITHUB_REF_NAME}" != "$expected" ]]; then
+            echo "The tag must be $expected." >&2
+            exit 1
+          fi
+          if [[ "$version" == *-SNAPSHOT ]]; then
+            echo 'A release version cannot use -SNAPSHOT.' >&2
+            exit 1
+          fi
+          if [[ "$version" != *-* ]] && ! git tag --list "v$version-rc.*" | grep --quiet .; then
+            echo 'Create and verify a release-candidate tag before the stable tag.' >&2
+            exit 1
+          fi
+
+      - name: Run the release gate
+        run: ./gradlew clean build
+
+      - name: Run SonarQube Cloud analysis and wait for the gate
+        run: ./gradlew sonar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Run MCP 2026-07-28 conformance
+        shell: bash
+        run: |
+          ./gradlew :examples:javalin:installDist
+          examples/javalin/build/install/javalin/bin/javalin > build/conformance-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid"' EXIT
+          for _ in {1..30}; do
+            if curl --silent --output /dev/null http://127.0.0.1:8080/; then
+              break
+            fi
+            sleep 1
+          done
+          npx --yes @modelcontextprotocol/conformance@0.2.0-alpha.11 server \
+            --url http://127.0.0.1:8080/mcp \
+            --scenario server-stateless \
+            --spec-version 2026-07-28
+
+      - name: Publish signed artifacts to the local Maven repository
+        run: ./gradlew publishToMavenLocal --no-configuration-cache
+        env:
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEYPASSWORD }}
+
+      - name: Require signatures for each public module
+        shell: bash
+        run: |
+          signature_count=$(find ~/.m2/repository/io/github/suppierk -type f -name '*.asc' | wc -l)
+          if [[ "$signature_count" -lt 18 ]]; then
+            echo "Expected at least 18 signatures, found $signature_count." >&2
+            exit 1
+          fi
+
+      - name: Publish public modules
+        run: ./gradlew publishAllPublicationsToMavenCentral --no-configuration-cache
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.ORG_GRADLE_PROJECT_MAVENCENTRALUSERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.ORG_GRADLE_PROJECT_MAVENCENTRALPASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEYPASSWORD }}

@@ -1,0 +1,17 @@
+plugins {
+	id 'java-library'
+	id 'com.vanniktech.maven.publish'
+}
+
+description = 'Spring WebMVC adapter for MCP Streamable HTTP'
+
+dependencies {
+	api project(':mcp-transport-http')
+	compileOnly platform("org.springframework.boot:spring-boot-dependencies:${rootProject.ext.versions.springBoot}")
+	compileOnly 'jakarta.servlet:jakarta.servlet-api'
+	compileOnly 'org.springframework:spring-webmvc'
+	testImplementation platform("org.springframework.boot:spring-boot-dependencies:${rootProject.ext.versions.springBoot}")
+	testImplementation 'jakarta.servlet:jakarta.servlet-api'
+	testImplementation 'org.springframework:spring-test'
+	testImplementation 'org.springframework:spring-webmvc'
+}

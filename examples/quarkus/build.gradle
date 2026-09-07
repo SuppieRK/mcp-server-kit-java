@@ -1,0 +1,13 @@
+plugins {
+	id 'java'
+	id 'io.quarkus'
+}
+
+dependencies {
+	implementation project(':mcp-transport-http')
+	implementation enforcedPlatform("io.quarkus.platform:quarkus-bom:${rootProject.ext.versions.quarkus}")
+	implementation 'io.quarkus:quarkus-elytron-security-properties-file'
+	implementation 'io.quarkus:quarkus-rest'
+	testImplementation 'io.quarkus:quarkus-junit5'
+	testImplementation 'io.rest-assured:rest-assured'
+}

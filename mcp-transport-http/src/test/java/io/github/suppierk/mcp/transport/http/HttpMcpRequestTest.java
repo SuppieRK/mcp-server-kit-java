@@ -1,0 +1,46 @@
+package io.github.suppierk.mcp.transport.http;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+
+class HttpMcpRequestTest {
+
+  @Test
+  void preservesImmutableHeaderCardinalityAndMergesNamesWithoutCaseSensitivity() {
+    var supplied = new LinkedHashMap<String, List<String>>();
+    supplied.put("X-Trace", List.of("first", "second"));
+    supplied.put("x-trace", List.of("third"));
+    supplied.put("Unrelated", List.of("one", "two"));
+    byte[] body = "body".getBytes(StandardCharsets.UTF_8);
+
+    var request = new HttpMcpRequest("POST", supplied, body);
+    body[0] = 'B';
+
+    assertEquals(List.of("first", "second", "third"), request.headers().get("X-TRACE"));
+    assertEquals(List.of("one", "two"), request.headers().get("unrelated"));
+    assertArrayEquals("body".getBytes(StandardCharsets.UTF_8), request.body());
+    assertThrows(
+        UnsupportedOperationException.class, () -> request.headers().get("x-trace").add("fourth"));
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> request.headers().put("Another", List.of("value")));
+  }
+
+  @Test
+  void exposesOnlyMethodHeadersAndBody() {
+    assertEquals(
+        List.of("method", "headers", "body"),
+        java.util.Arrays.stream(HttpMcpRequest.class.getRecordComponents())
+            .map(java.lang.reflect.RecordComponent::getName)
+            .toList());
+    assertEquals(
+        "java.util.Map<java.lang.String, java.util.List<java.lang.String>>",
+        HttpMcpRequest.class.getRecordComponents()[1].getGenericType().getTypeName());
+  }
+}

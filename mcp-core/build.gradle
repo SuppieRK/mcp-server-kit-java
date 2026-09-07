@@ -1,0 +1,15 @@
+plugins {
+	id 'java-library'
+	id 'com.vanniktech.maven.publish'
+}
+
+description = 'MCP protocol and server primitives'
+
+dependencies {
+	api platform("com.fasterxml.jackson:jackson-bom:${rootProject.ext.versions.jackson}")
+	api 'com.fasterxml.jackson.core:jackson-databind'
+	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jdk8'
+	implementation "com.networknt:json-schema-validator:${rootProject.ext.versions.networkntSchema}"
+	testImplementation "com.tngtech.archunit:archunit:${rootProject.ext.versions.archunit}"
+	testImplementation "nl.jqno.equalsverifier:equalsverifier:${rootProject.ext.versions.equalsverifier}"
+}

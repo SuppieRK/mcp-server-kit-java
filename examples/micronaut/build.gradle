@@ -1,0 +1,36 @@
+plugins {
+	id 'io.micronaut.application'
+}
+
+dependencies {
+	implementation project(':mcp-transport-http')
+	implementation("com.networknt:json-schema-validator") {
+		version {
+			strictly rootProject.ext.versions.networkntSchema
+		}
+	}
+	implementation 'io.micronaut:micronaut-http-server-netty'
+	implementation 'io.micronaut.serde:micronaut-serde-jackson'
+	implementation 'io.micronaut.security:micronaut-security'
+	runtimeOnly 'ch.qos.logback:logback-classic'
+	testImplementation 'io.micronaut:micronaut-http-client'
+	testImplementation 'io.micronaut.test:micronaut-test-junit5'
+}
+
+application {
+	mainClass = 'io.github.suppierk.mcp.example.micronaut.MicronautExampleApplication'
+}
+
+micronaut {
+	version rootProject.ext.versions.micronautPlatform
+	runtime 'netty'
+	testRuntime 'junit5'
+	processing {
+		incremental true
+		annotations 'io.github.suppierk.mcp.example.micronaut.*'
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.release = 25
+}

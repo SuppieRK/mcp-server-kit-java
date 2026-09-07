@@ -1,0 +1,13 @@
+plugins {
+	id 'java'
+	id 'application'
+}
+
+dependencies {
+	implementation project(':mcp-javalin')
+	implementation "io.javalin:javalin:${rootProject.ext.versions.javalin}"
+}
+
+application {
+	mainClass = 'io.github.suppierk.mcp.example.javalin.JavalinExampleApplication'
+}

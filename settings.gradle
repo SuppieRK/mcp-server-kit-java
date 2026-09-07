@@ -1,0 +1,39 @@
+pluginManagement {
+	repositories {
+		gradlePluginPortal()
+		mavenCentral()
+	}
+	plugins {
+		id 'com.diffplug.spotless' version '8.10.0'
+		id 'com.vanniktech.maven.publish' version '0.37.0'
+		id 'io.micronaut.application' version '5.0.2'
+		id 'io.quarkus' version '3.39.1'
+		id 'org.sonarqube' version '7.4.0.8496'
+		id 'org.springframework.boot' version '4.1.0'
+	}
+}
+
+plugins {
+	id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+dependencyResolutionManagement {
+	repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+	repositories {
+		mavenCentral()
+	}
+}
+
+rootProject.name = 'mcp-server-kit-java'
+
+include 'mcp-core'
+include 'mcp-transport-stdio'
+include 'mcp-transport-http'
+include 'mcp-spring-webmvc'
+include 'mcp-spring-webflux'
+include 'mcp-javalin'
+include 'examples:spring-webmvc'
+include 'examples:spring-webflux'
+include 'examples:javalin'
+include 'examples:quarkus'
+include 'examples:micronaut'

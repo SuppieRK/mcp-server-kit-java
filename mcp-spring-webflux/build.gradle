@@ -1,0 +1,17 @@
+plugins {
+	id 'java-library'
+	id 'com.vanniktech.maven.publish'
+}
+
+description = 'Spring WebFlux adapter for MCP Streamable HTTP'
+
+dependencies {
+	api project(':mcp-transport-http')
+	compileOnly platform("org.springframework.boot:spring-boot-dependencies:${rootProject.ext.versions.springBoot}")
+	compileOnly 'org.springframework:spring-webflux'
+	testImplementation platform("org.springframework.boot:spring-boot-dependencies:${rootProject.ext.versions.springBoot}")
+	testImplementation 'io.projectreactor:reactor-test'
+	testImplementation 'org.springframework:spring-context'
+	testImplementation 'org.springframework:spring-test'
+	testImplementation 'org.springframework:spring-webflux'
+}

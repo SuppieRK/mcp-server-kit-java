@@ -1,0 +1,12 @@
+plugins {
+	id 'java-library'
+	id 'com.vanniktech.maven.publish'
+}
+
+description = 'Javalin adapter for MCP Streamable HTTP'
+
+dependencies {
+	api project(':mcp-transport-http')
+	compileOnly "io.javalin:javalin:${rootProject.ext.versions.javalin}"
+	testImplementation "io.javalin:javalin:${rootProject.ext.versions.javalin}"
+}

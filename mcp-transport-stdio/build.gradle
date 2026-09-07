@@ -1,0 +1,10 @@
+plugins {
+	id 'java-library'
+	id 'com.vanniktech.maven.publish'
+}
+
+description = 'MCP stdio transport binding'
+
+dependencies {
+	api project(':mcp-core')
+}

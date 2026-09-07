@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  workflow_dispatch: {}
+  pull_request: {}
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - name: Validate the Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v6.2.0
+
+      - name: Cache SonarQube Cloud packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.gradle/caches
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
+          restore-keys: ${{ runner.os }}-gradle-
+
+      - name: Run the complete gate
+        run: ./gradlew clean build
+
+      - name: Run SonarQube Cloud analysis and wait for the gate
+        if: env.SONAR_TOKEN != ''
+        run: ./gradlew sonar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run MCP 2026-07-28 conformance
+        shell: bash
+        run: |
+          ./gradlew :examples:javalin:installDist
+          examples/javalin/build/install/javalin/bin/javalin > build/conformance-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid"' EXIT
+          for _ in {1..30}; do
+            if curl --silent --output /dev/null http://127.0.0.1:8080/; then
+              break
+            fi
+            sleep 1
+          done
+          npx --yes @modelcontextprotocol/conformance@0.2.0-alpha.11 server \
+            --url http://127.0.0.1:8080/mcp \
+            --scenario server-stateless \
+            --spec-version 2026-07-28
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: quality-reports
+          path: |
+            build/reports/jacoco/
+            */build/reports/jacoco/
+          if-no-files-found: error
