@@ -70,6 +70,8 @@ jobs:
             build/reports/checkstyle/
             */build/reports/checkstyle/
             conformance/build/reports/conformance/
-            conformance/build/reports/tests/
-            conformance/build/test-results/
+            */build/reports/tests/
+            */build/test-results/
+            examples/*/build/reports/tests/
+            examples/*/build/test-results/
           if-no-files-found: error
