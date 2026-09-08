@@ -241,7 +241,7 @@ configure(subprojects.findAll { !(it.name in publishedModules) }) {
 
 sonar {
 	properties {
-		property 'sonar.projectKey', 'suppierk_mcp-server-kit-java'
+		property 'sonar.projectKey', 'SuppieRK_mcp-server-kit-java'
 		property 'sonar.organization', 'suppierk'
 		property 'sonar.host.url', 'https://sonarcloud.io'
 		property 'sonar.gradle.skipCompile', 'true'
