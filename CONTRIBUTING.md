@@ -55,6 +55,31 @@ changes to the expected coverage. CI uses Node.js 22; the pinned npm dependency 
 
 ## Java quality checks
 
+### Read CI results
+
+Open **Actions**, select the **CI** run, and read **Quality report** on its summary page.
+The report shows the build outcome, test totals, module line coverage, Checkstyle findings,
+required conformance results, non-scored diagnostics, and the Sonar analysis/gate outcome.
+Expand a failure section for up to ten entries. Use **Download detailed reports (ZIP)** for the
+full reports and logs. GitHub requires sign-in to download artifacts; links expire with them.
+
+The summary also runs after a failed build. Missing or malformed reports are marked unavailable
+or partial, not successful. Expected Checkstyle fixture violations are excluded from code findings.
+Conformance diagnostic failures are shown separately because they do not determine the gate.
+Sonar can be skipped, for example when its token is unavailable on a fork pull request.
+
+The CI-only summary script uses Python 3 and its standard library. CI runs its fixture tests:
+
+```text
+python3 -B -m unittest discover -s .github/scripts -p 'test_*.py' -v
+```
+
+Run `python3 -B .github/scripts/quality_summary.py` to preview available local reports as Markdown.
+Local build and Sonar outcomes are unavailable unless supplied by CI. The summary reads existing
+reports; it does not run checks or replace any quality gate.
+
+### Run checks locally
+
 Run `./gradlew checkstyleAllJava` for the shared Checkstyle hygiene and correctness rules. This checks
 handwritten production code, tests, framework examples, benchmarks, isolated consumers, and shared
 architecture tests. Generated build output and the deliberate Checkstyle regression fixtures are

@@ -50,7 +50,11 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
           restore-keys: ${{ runner.os }}-gradle-
 
+      - name: Test the quality summary
+        run: python3 -B -m unittest discover -s .github/scripts -p 'test_*.py' -v
+
       - name: Run the complete gate
+        id: gate
         run: ./gradlew clean build
 
       - name: Run SonarQube Cloud analysis and wait for the gate
@@ -69,6 +73,7 @@ jobs:
             --output build/reports/sonar-quality-gate.json
 
       - name: Upload quality reports
+        id: reports
         if: always()
         uses: actions/upload-artifact@v7
         with:
@@ -85,3 +90,12 @@ jobs:
             examples/*/build/reports/tests/
             examples/*/build/test-results/
           if-no-files-found: error
+
+      - name: Summarize quality reports
+        if: always()
+        env:
+          BUILD_OUTCOME: ${{ steps.gate.outcome }}
+          SONAR_OUTCOME: ${{ steps.sonar.outcome }}
+          QUALITY_ARTIFACT_URL: ${{ steps.reports.outputs.artifact-url }}
+          QUALITY_PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python3 -B .github/scripts/quality_summary.py >> "$GITHUB_STEP_SUMMARY"
