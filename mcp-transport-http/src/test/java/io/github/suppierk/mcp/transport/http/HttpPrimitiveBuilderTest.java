@@ -5,6 +5,7 @@ import static io.github.suppierk.mcp.transport.http.HttpJsonResponse.httpJsonRes
 import static io.github.suppierk.mcp.transport.http.HttpMcpRequest.httpMcpRequest;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -18,6 +19,8 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class HttpPrimitiveBuilderTest {
+  // equals itself is under test, including null and unrelated types, not JUnit's equality helper.
+  @SuppressWarnings("java:S5785")
   @Test
   void jsonResponseCopiesHaveValueSemantics() {
     var response = httpJsonResponse().body(new byte[] {3, 4}).build();
@@ -35,10 +38,12 @@ class HttpPrimitiveBuilderTest {
             .body(new byte[] {3, 4})
             .build());
     assertNotEquals(response, httpJsonResponse().body(new byte[] {3, 5}).build());
-    assertNotEquals(response, null);
-    assertNotEquals(response, "response");
+    assertFalse(response.equals(null));
+    assertFalse(response.equals("response"));
   }
 
+  // Keep direct equals calls so null and unrelated-type checks exercise the request contract.
+  @SuppressWarnings("java:S5785")
   @Test
   void requestCopiesHaveValueSemantics() {
     var request =
@@ -56,8 +61,8 @@ class HttpPrimitiveBuilderTest {
     assertNotEquals(request, new HttpMcpRequest("GET", request.headers(), request.body()));
     assertNotEquals(request, new HttpMcpRequest("POST", Map.of(), request.body()));
     assertNotEquals(request, new HttpMcpRequest("POST", request.headers(), new byte[] {1, 3}));
-    assertNotEquals(request, null);
-    assertNotEquals(request, "request");
+    assertFalse(request.equals(null));
+    assertFalse(request.equals("request"));
   }
 
   @Test
