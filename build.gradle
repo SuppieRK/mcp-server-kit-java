@@ -171,6 +171,7 @@ subprojects {
 		}
 		tasks.matching { it.name == 'sonarResolver' }.configureEach {
 			dependsOn tasks.named('classes')
+			dependsOn tasks.named('testClasses')
 		}
 		tasks.named('check') {
 			dependsOn tasks.named('spotlessCheck')
