@@ -1,9 +1,10 @@
 package io.github.suppierk.mcp.example.javalin;
 
+import static io.github.suppierk.mcp.server.McpServerKit.mcpServerKit;
+
 import io.github.suppierk.mcp.javalin.JavalinMcpAdapter;
 import io.github.suppierk.mcp.protocol.McpCallToolResult;
 import io.github.suppierk.mcp.protocol.McpTextContent;
-import io.github.suppierk.mcp.protocol.McpTool;
 import io.github.suppierk.mcp.server.McpEmptyContext;
 import io.github.suppierk.mcp.server.McpServerKit;
 import io.javalin.Javalin;
@@ -45,19 +46,24 @@ public final class JavalinExampleApplication {
 
   /** Creates the public server kit. */
   private static McpServerKit<McpEmptyContext> createPublicServerKit() {
-    return McpServerKit.builder("javalin-public", "1.0.0", McpEmptyContext.class)
+    return mcpServerKit("javalin-public", "1.0.0", McpEmptyContext.class)
         .syncTool(
-            new McpTool("hello", emptyInputSchema()),
-            (applicationContext, request, handlerContext) -> result("Hello, World!"))
+            registration ->
+                registration
+                    .name("hello")
+                    .handler(
+                        (applicationContext, request, handlerContext) -> result("Hello, World!")))
         .build();
   }
 
   /** Creates the protected server kit. */
   private static McpServerKit<DemoIdentity> createProtectedServerKit() {
-    return McpServerKit.builder("javalin-protected", "1.0.0", DemoIdentity.class)
+    return mcpServerKit("javalin-protected", "1.0.0", DemoIdentity.class)
         .syncTool(
-            new McpTool("current-user", emptyInputSchema()),
-            (identity, request, handlerContext) -> result(identity.identifier()))
+            registration ->
+                registration
+                    .name("current-user")
+                    .handler((identity, request, handlerContext) -> result(identity.identifier())))
         .build();
   }
 
@@ -83,11 +89,6 @@ public final class JavalinExampleApplication {
       throw new IllegalStateException("Protected route has no authenticated identity");
     }
     return identity;
-  }
-
-  /** Creates a closed schema for a tool that accepts no arguments. */
-  private static Map<String, ?> emptyInputSchema() {
-    return Map.of("type", "object", "additionalProperties", false);
   }
 
   /** Creates one successful text tool result. */

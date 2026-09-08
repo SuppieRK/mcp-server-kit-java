@@ -1,6 +1,7 @@
 package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * Parameters for a {@link McpSubscriptionsListenRequest} ({@code subscriptions/listen}) request.
@@ -34,6 +35,30 @@ public record McpSubscriptionsListenRequestParams(
     private McpSubscriptionFilter notifications;
 
     private Builder() {}
+
+    /**
+     * Sets {@code meta} using a {@link McpRequestMetaObject} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder meta(Consumer<McpRequestMetaObject.Builder> configure) {
+      var child = McpRequestMetaObject.mcpRequestMetaObject();
+      configure.accept(child);
+      return meta(child.build());
+    }
+
+    /**
+     * Sets {@code notifications} using a {@link McpSubscriptionFilter} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder notifications(Consumer<McpSubscriptionFilter.Builder> configure) {
+      var child = McpSubscriptionFilter.mcpSubscriptionFilter();
+      configure.accept(child);
+      return notifications(child.build());
+    }
 
     /**
      * Sets {@code meta}.

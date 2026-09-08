@@ -12,7 +12,6 @@ dependencies {
 	implementation platform("tools.jackson:jackson-bom:${rootProject.ext.versions.privateJackson}")
 	implementation 'tools.jackson.core:jackson-databind'
 	implementation "com.networknt:json-schema-validator:${rootProject.ext.versions.networkntSchema}"
-	testImplementation "com.tngtech.archunit:archunit:${rootProject.ext.versions.archunit}"
 	testImplementation "nl.jqno.equalsverifier:equalsverifier:${rootProject.ext.versions.equalsverifier}"
 }
 

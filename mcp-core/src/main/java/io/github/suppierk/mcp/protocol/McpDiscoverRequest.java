@@ -1,6 +1,7 @@
 package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * A request for the protocol versions and capabilities that a server supports. A server must
@@ -64,6 +65,18 @@ public record McpDiscoverRequest(Object id, McpRequestParams params) implements 
     private McpRequestParams params;
 
     private Builder() {}
+
+    /**
+     * Sets {@code params} using a {@link McpRequestParams} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder params(Consumer<McpRequestParams.Builder> configure) {
+      var child = McpRequestParams.mcpRequestParams();
+      configure.accept(child);
+      return params(child.build());
+    }
 
     /**
      * Sets {@code id}.

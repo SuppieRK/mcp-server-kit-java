@@ -1,13 +1,13 @@
 package io.github.suppierk.mcp.example.springwebflux;
 
+import static io.github.suppierk.mcp.server.McpServerKit.mcpServerKit;
+
 import io.github.suppierk.mcp.protocol.McpCallToolResult;
 import io.github.suppierk.mcp.protocol.McpTextContent;
-import io.github.suppierk.mcp.protocol.McpTool;
 import io.github.suppierk.mcp.server.McpEmptyContext;
 import io.github.suppierk.mcp.server.McpServerKit;
 import io.github.suppierk.mcp.spring.webflux.SpringWebFluxMcpAdapter;
 import java.util.List;
-import java.util.Map;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -45,10 +45,14 @@ public class SpringWebFluxExampleApplication {
    */
   @Bean
   public McpServerKit<McpEmptyContext> publicMcpServerKit() {
-    return McpServerKit.builder("spring-webflux-public", "1.0.0", McpEmptyContext.class)
+    return mcpServerKit("spring-webflux-public", "1.0.0", McpEmptyContext.class)
         .syncTool(
-            new McpTool("hello", emptyInputSchema()),
-            (applicationContext, request, handlerContext) -> textResult("Hello, World!"))
+            registration ->
+                registration
+                    .name("hello")
+                    .handler(
+                        (applicationContext, request, handlerContext) ->
+                            new McpCallToolResult(List.of(new McpTextContent("Hello, World!")))))
         .build();
   }
 
@@ -59,11 +63,17 @@ public class SpringWebFluxExampleApplication {
    */
   @Bean
   public McpServerKit<Authentication> protectedMcpServerKit() {
-    return McpServerKit.builder("spring-webflux-protected", "1.0.0", Authentication.class)
+    return mcpServerKit("spring-webflux-protected", "1.0.0", Authentication.class)
         .asyncTool(
-            new McpTool("current-user", emptyInputSchema()),
-            (authentication, request, handlerContext) ->
-                Mono.just(textResult(authentication.getName())).toFuture())
+            registration ->
+                registration
+                    .name("current-user")
+                    .handler(
+                        (authentication, request, handlerContext) ->
+                            Mono.just(
+                                    new McpCallToolResult(
+                                        List.of(new McpTextContent(authentication.getName()))))
+                                .toFuture()))
         .build();
   }
 
@@ -126,15 +136,5 @@ public class SpringWebFluxExampleApplication {
     UserDetails user =
         User.withUsername("demo-user").password("{noop}demo-password").roles("USER").build();
     return new MapReactiveUserDetailsService(user);
-  }
-
-  /** Creates a closed schema for a tool that accepts no arguments. */
-  private static Map<String, ?> emptyInputSchema() {
-    return Map.of("type", "object", "additionalProperties", false);
-  }
-
-  /** Creates one successful text tool result. */
-  private static McpCallToolResult textResult(String text) {
-    return new McpCallToolResult(List.of(new McpTextContent(text)));
   }
 }

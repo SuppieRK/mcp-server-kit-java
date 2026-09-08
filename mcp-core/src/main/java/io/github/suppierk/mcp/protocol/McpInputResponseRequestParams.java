@@ -2,6 +2,7 @@ package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * Parameters that resume a request with supplied input.
@@ -38,6 +39,30 @@ public record McpInputResponseRequestParams(
     private Optional<String> requestState = Optional.empty();
 
     private Builder() {}
+
+    /**
+     * Sets {@code meta} using a {@link McpRequestMetaObject} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder meta(Consumer<McpRequestMetaObject.Builder> configure) {
+      var child = McpRequestMetaObject.mcpRequestMetaObject();
+      configure.accept(child);
+      return meta(child.build());
+    }
+
+    /**
+     * Sets {@code inputResponses} using a {@link McpInputResponses} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder inputResponses(Consumer<McpInputResponses.Builder> configure) {
+      var child = McpInputResponses.mcpInputResponses();
+      configure.accept(child);
+      return inputResponses(child.build());
+    }
 
     /**
      * Sets {@code meta}.

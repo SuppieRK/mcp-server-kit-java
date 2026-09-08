@@ -1,6 +1,7 @@
 package io.github.suppierk.mcp.server;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import io.github.suppierk.mcp.internal.JsonValues;
 import io.github.suppierk.mcp.protocol.JsonRpcErrorResponse;
 import io.github.suppierk.mcp.protocol.JsonRpcMessage;
 import io.github.suppierk.mcp.protocol.JsonRpcNotification;
@@ -26,6 +27,7 @@ import io.github.suppierk.mcp.protocol.McpGetPromptResultResponse;
 import io.github.suppierk.mcp.protocol.McpIcon;
 import io.github.suppierk.mcp.protocol.McpImplementation;
 import io.github.suppierk.mcp.protocol.McpJsonNull;
+import io.github.suppierk.mcp.protocol.McpJsonSchema;
 import io.github.suppierk.mcp.protocol.McpListPromptsRequest;
 import io.github.suppierk.mcp.protocol.McpListPromptsResult;
 import io.github.suppierk.mcp.protocol.McpListPromptsResultResponse;
@@ -38,6 +40,7 @@ import io.github.suppierk.mcp.protocol.McpListResourcesResultResponse;
 import io.github.suppierk.mcp.protocol.McpListToolsRequest;
 import io.github.suppierk.mcp.protocol.McpListToolsResult;
 import io.github.suppierk.mcp.protocol.McpListToolsResultResponse;
+import io.github.suppierk.mcp.protocol.McpMetaObject;
 import io.github.suppierk.mcp.protocol.McpNotificationMetaObject;
 import io.github.suppierk.mcp.protocol.McpProgressNotification;
 import io.github.suppierk.mcp.protocol.McpProgressNotificationParams;
@@ -62,7 +65,7 @@ import io.github.suppierk.mcp.protocol.McpSubscriptionsListenRequest;
 import io.github.suppierk.mcp.protocol.McpSubscriptionsListenResult;
 import io.github.suppierk.mcp.protocol.McpSubscriptionsListenResultMetaObject;
 import io.github.suppierk.mcp.protocol.McpSubscriptionsListenResultResponse;
-import io.github.suppierk.mcp.protocol.McpTool;
+import io.github.suppierk.mcp.protocol.McpToolAnnotations;
 import io.github.suppierk.mcp.protocol.McpToolListChangedNotification;
 import java.net.URI;
 import java.util.ArrayDeque;
@@ -148,9 +151,8 @@ public final class McpServerKit<C> implements AutoCloseable {
     LinkedHashMap<String, JsonSchemaValidator.Compiled> outputs = new LinkedHashMap<>();
     tools.forEach(
         (toolName, registration) -> {
-          inputs.put(toolName, schemaValidator.compile(registration.declaration().inputSchema()));
+          inputs.put(toolName, schemaValidator.compile(registration.inputSchema()));
           registration
-              .declaration()
               .outputSchema()
               .ifPresent(schema -> outputs.put(toolName, schemaValidator.compile(schema)));
         });
@@ -167,7 +169,7 @@ public final class McpServerKit<C> implements AutoCloseable {
    * @param <C> the application-context type
    * @return a new builder
    */
-  public static <C> Builder<C> builder(
+  public static <C> Builder<C> mcpServerKit(
       String name, String version, Class<C> applicationContextType) {
     Objects.requireNonNull(applicationContextType, "applicationContextType");
     return new Builder<>(name, version);
@@ -234,9 +236,7 @@ public final class McpServerKit<C> implements AutoCloseable {
    */
   public Optional<Map<String, ?>> toolInputSchema(String toolName) {
     ToolRegistration<C> registration = tools.get(Objects.requireNonNull(toolName, "toolName"));
-    return registration == null
-        ? Optional.empty()
-        : Optional.of(registration.declaration().inputSchema());
+    return registration == null ? Optional.empty() : Optional.of(registration.inputSchema());
   }
 
   /**
@@ -1035,8 +1035,20 @@ public final class McpServerKit<C> implements AutoCloseable {
 
   /** Stores a tool with its handler. */
   private record ToolRegistration<C>(
-      McpTool declaration,
-      RegisteredHandler<C, McpCallToolRequestParams, McpCallToolResultResponse.Result> handler) {}
+      Map<String, ?> declaration,
+      RegisteredHandler<C, McpCallToolRequestParams, McpCallToolResultResponse.Result> handler) {
+    /** Returns the validated object schema from the immutable declaration. */
+    @SuppressWarnings("unchecked")
+    private Map<String, ?> inputSchema() {
+      return (Map<String, ?>) declaration.get("inputSchema");
+    }
+
+    /** Returns the optional structured-output schema. */
+    @SuppressWarnings("unchecked")
+    private Optional<Map<String, ?>> outputSchema() {
+      return Optional.ofNullable((Map<String, ?>) declaration.get("outputSchema"));
+    }
+  }
 
   /** Stores a resource with its handler. */
   private record ResourceRegistration<C>(
@@ -1610,38 +1622,42 @@ public final class McpServerKit<C> implements AutoCloseable {
     /**
      * Registers one synchronous tool handler.
      *
-     * @param declaration the tool declaration
-     * @param handler the application handler
+     * <p>The callback runs immediately and once. Its values are validated and snapshotted after it
+     * returns. A failed callback or invalid declaration registers nothing.
+     *
+     * @param configure the tool configuration, including a nonblank name and non-null handler
      * @return this builder
      * @throws IllegalArgumentException if the tool name is already registered
      * @throws NullPointerException if an argument is {@code null}
      */
     public Builder<C> syncTool(
-        McpTool declaration,
-        McpHandler<C, McpCallToolRequestParams, McpCallToolResultResponse.Result> handler) {
-      McpTool required = Objects.requireNonNull(declaration, "declaration");
-      put(tools, required.name(), new ToolRegistration<>(required, adaptSync(handler)), "tool");
+        Consumer<ToolBuilder<C, McpCallToolResultResponse.Result>> configure) {
+      var tool = new ToolBuilder<C, McpCallToolResultResponse.Result>();
+      Objects.requireNonNull(configure, "configure").accept(tool);
+      var declaration = tool.declaration(mapper);
+      put(tools, tool.name, new ToolRegistration<>(declaration, adaptSync(tool.handler)), "tool");
       return this;
     }
 
     /**
      * Registers one asynchronous tool handler.
      *
-     * @param declaration the tool declaration
-     * @param handler the application handler
+     * <p>The callback runs immediately and once. Its values are validated and snapshotted after it
+     * returns. A failed callback or invalid declaration registers nothing.
+     *
+     * @param configure the tool configuration, including a nonblank name and non-null handler
      * @return this builder
      * @throws IllegalArgumentException if the tool name is already registered
      * @throws NullPointerException if an argument is {@code null}
      */
     public Builder<C> asyncTool(
-        McpTool declaration,
-        McpHandler<
-                C,
-                McpCallToolRequestParams,
-                CompletableFuture<? extends McpCallToolResultResponse.Result>>
-            handler) {
-      McpTool required = Objects.requireNonNull(declaration, "declaration");
-      put(tools, required.name(), new ToolRegistration<>(required, adaptAsync(handler)), "tool");
+        Consumer<ToolBuilder<C, CompletableFuture<? extends McpCallToolResultResponse.Result>>>
+            configure) {
+      var tool =
+          new ToolBuilder<C, CompletableFuture<? extends McpCallToolResultResponse.Result>>();
+      Objects.requireNonNull(configure, "configure").accept(tool);
+      var declaration = tool.declaration(mapper);
+      put(tools, tool.name, new ToolRegistration<>(declaration, adaptAsync(tool.handler)), "tool");
       return this;
     }
 
@@ -1911,6 +1927,161 @@ public final class McpServerKit<C> implements AutoCloseable {
         throw new IllegalArgumentException("The " + field + " must not be blank");
       }
       return value;
+    }
+  }
+
+  /**
+   * Configures one tool inside a registration callback.
+   *
+   * @param <C> the application-context type
+   * @param <R> the handler result type
+   */
+  public static final class ToolBuilder<C, R> {
+    private String name;
+    private McpHandler<C, McpCallToolRequestParams, R> handler;
+    private Map<String, ?> inputSchema = McpJsonSchema.mcpJsonObjectSchema();
+    private Optional<Map<String, ?>> outputSchema = Optional.empty();
+    private Optional<String> description = Optional.empty();
+    private Optional<String> title = Optional.empty();
+    private Optional<McpMetaObject> meta = Optional.empty();
+    private Optional<McpToolAnnotations> annotations = Optional.empty();
+    private Optional<List<McpIcon>> icons = Optional.empty();
+
+    private ToolBuilder() {}
+
+    /** Snapshots the declaration after the callback has completed. */
+    private Map<String, ?> declaration(ObjectMapper mapper) {
+      Builder.requireText(name, "tool name");
+      Objects.requireNonNull(handler, "handler");
+      if (!"object".equals(inputSchema.get("type"))) {
+        throw new IllegalArgumentException("A tool input schema must have object type");
+      }
+      var values = new LinkedHashMap<String, Object>();
+      values.put("name", name);
+      values.put("inputSchema", inputSchema);
+      outputSchema.ifPresent(value -> values.put("outputSchema", value));
+      description.ifPresent(value -> values.put("description", value));
+      title.ifPresent(value -> values.put("title", value));
+      meta.ifPresent(value -> values.put("_meta", value.values()));
+      annotations.ifPresent(
+          value -> values.put("annotations", ProtocolJson.object(mapper.valueToTree(value))));
+      icons.ifPresent(
+          value ->
+              values.put(
+                  "icons",
+                  value.stream()
+                      .map(icon -> ProtocolJson.object(mapper.valueToTree(icon)))
+                      .toList()));
+      return JsonValues.copyObject(values);
+    }
+
+    /**
+     * Sets a complete input schema, preserving arbitrary dialect keywords.
+     *
+     * @param value the schema with root type {@code object}
+     * @return this builder
+     */
+    public ToolBuilder<C, R> inputSchema(Map<String, ?> value) {
+      inputSchema = Objects.requireNonNull(value, "inputSchema");
+      return this;
+    }
+
+    /**
+     * Configures a closed object input schema using composable JDK schema maps.
+     *
+     * @param configure the schema configuration, invoked immediately and once
+     * @return this builder
+     */
+    public ToolBuilder<C, R> inputSchema(Consumer<McpJsonSchema.ObjectBuilder> configure) {
+      return inputSchema(McpJsonSchema.mcpJsonObjectSchema(configure));
+    }
+
+    /**
+     * Sets the optional structured-output schema.
+     *
+     * @param value the schema
+     * @return this builder
+     */
+    public ToolBuilder<C, R> outputSchema(Map<String, ?> value) {
+      outputSchema = Optional.of(value);
+      return this;
+    }
+
+    /**
+     * Sets the tool description.
+     *
+     * @param value the description
+     * @return this builder
+     */
+    public ToolBuilder<C, R> description(String value) {
+      description = Optional.of(value);
+      return this;
+    }
+
+    /**
+     * Sets the display title.
+     *
+     * @param value the title
+     * @return this builder
+     */
+    public ToolBuilder<C, R> title(String value) {
+      title = Optional.of(value);
+      return this;
+    }
+
+    /**
+     * Sets protocol extension metadata.
+     *
+     * @param value the metadata
+     * @return this builder
+     */
+    public ToolBuilder<C, R> meta(McpMetaObject value) {
+      meta = Optional.of(value);
+      return this;
+    }
+
+    /**
+     * Sets tool behavior and display hints.
+     *
+     * @param value the annotations
+     * @return this builder
+     */
+    public ToolBuilder<C, R> annotations(McpToolAnnotations value) {
+      annotations = Optional.of(value);
+      return this;
+    }
+
+    /**
+     * Sets icons for the tool.
+     *
+     * @param value the icons
+     * @return this builder
+     */
+    public ToolBuilder<C, R> icons(List<McpIcon> value) {
+      icons = Optional.of(value);
+      return this;
+    }
+
+    /**
+     * Sets the programmatic tool name.
+     *
+     * @param value the name; it must be nonblank when the registration callback returns
+     * @return this builder
+     */
+    public ToolBuilder<C, R> name(String value) {
+      name = Objects.requireNonNull(value, "name");
+      return this;
+    }
+
+    /**
+     * Sets the context-first application handler.
+     *
+     * @param value the handler
+     * @return this builder
+     */
+    public ToolBuilder<C, R> handler(McpHandler<C, McpCallToolRequestParams, R> value) {
+      handler = Objects.requireNonNull(value, "handler");
+      return this;
     }
   }
 }

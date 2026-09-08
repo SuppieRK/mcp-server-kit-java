@@ -1,6 +1,7 @@
 package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * Used by the client to invoke a tool provided by the server.
@@ -63,6 +64,18 @@ public record McpCallToolRequest(Object id, McpCallToolRequestParams params)
     private McpCallToolRequestParams params;
 
     private Builder() {}
+
+    /**
+     * Sets {@code params} using a {@link McpCallToolRequestParams} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder params(Consumer<McpCallToolRequestParams.Builder> configure) {
+      var child = McpCallToolRequestParams.mcpCallToolRequestParams();
+      configure.accept(child);
+      return params(child.build());
+    }
 
     /**
      * Sets {@code id}.

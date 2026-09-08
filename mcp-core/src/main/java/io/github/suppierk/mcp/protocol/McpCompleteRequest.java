@@ -1,6 +1,7 @@
 package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * A request from the client to the server, to ask for completion options.
@@ -63,6 +64,18 @@ public record McpCompleteRequest(Object id, McpCompleteRequestParams params)
     private McpCompleteRequestParams params;
 
     private Builder() {}
+
+    /**
+     * Sets {@code params} using a {@link McpCompleteRequestParams} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder params(Consumer<McpCompleteRequestParams.Builder> configure) {
+      var child = McpCompleteRequestParams.mcpCompleteRequestParams();
+      configure.accept(child);
+      return params(child.build());
+    }
 
     /**
      * Sets {@code id}.

@@ -1,6 +1,7 @@
 package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * A successful response from the server for a {@link McpDiscoverRequest} ({@code server/discover})
@@ -51,6 +52,18 @@ public record McpDiscoverResultResponse(Object id, McpDiscoverResult result)
     private McpDiscoverResult result;
 
     private Builder() {}
+
+    /**
+     * Sets {@code result} using a {@link McpDiscoverResult} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder result(Consumer<McpDiscoverResult.Builder> configure) {
+      var child = McpDiscoverResult.mcpDiscoverResult();
+      configure.accept(child);
+      return result(child.build());
+    }
 
     /**
      * Sets {@code id}.

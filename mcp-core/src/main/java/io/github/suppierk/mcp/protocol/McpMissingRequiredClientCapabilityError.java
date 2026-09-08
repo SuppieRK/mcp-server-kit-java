@@ -2,6 +2,7 @@ package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * Reports a missing client capability.
@@ -65,7 +66,7 @@ public record McpMissingRequiredClientCapabilityError(Error error, Optional<Obje
      *
      * @return a new builder
      */
-    public static Builder error() {
+    public static Builder mcpMissingRequiredClientCapabilityErrorError() {
       return new Builder();
     }
 
@@ -75,6 +76,21 @@ public record McpMissingRequiredClientCapabilityError(Error error, Optional<Obje
       private Data data;
 
       private Builder() {}
+
+      /**
+       * Sets {@code data} using a {@link McpMissingRequiredClientCapabilityError.Data} builder.
+       *
+       * @param configure the child configuration, invoked once before this builder changes
+       * @return this builder
+       */
+      public Builder data(
+          Consumer<McpMissingRequiredClientCapabilityError.Data.Builder> configure) {
+        var child =
+            McpMissingRequiredClientCapabilityError.Data
+                .mcpMissingRequiredClientCapabilityErrorData();
+        configure.accept(child);
+        return data(child.build());
+      }
 
       /**
        * Sets {@code message}.
@@ -125,7 +141,7 @@ public record McpMissingRequiredClientCapabilityError(Error error, Optional<Obje
      *
      * @return a new builder
      */
-    public static Builder data() {
+    public static Builder mcpMissingRequiredClientCapabilityErrorData() {
       return new Builder();
     }
 
@@ -134,6 +150,18 @@ public record McpMissingRequiredClientCapabilityError(Error error, Optional<Obje
       private McpClientCapabilities requiredCapabilities;
 
       private Builder() {}
+
+      /**
+       * Sets {@code requiredCapabilities} using a {@link McpClientCapabilities} builder.
+       *
+       * @param configure the child configuration, invoked once before this builder changes
+       * @return this builder
+       */
+      public Builder requiredCapabilities(Consumer<McpClientCapabilities.Builder> configure) {
+        var child = McpClientCapabilities.mcpClientCapabilities();
+        configure.accept(child);
+        return requiredCapabilities(child.build());
+      }
 
       /**
        * Sets {@code requiredCapabilities}.
@@ -172,6 +200,21 @@ public record McpMissingRequiredClientCapabilityError(Error error, Optional<Obje
     private Optional<Object> id = Optional.empty();
 
     private Builder() {}
+
+    /**
+     * Sets {@code error} using a {@link McpMissingRequiredClientCapabilityError.Error} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder error(
+        Consumer<McpMissingRequiredClientCapabilityError.Error.Builder> configure) {
+      var child =
+          McpMissingRequiredClientCapabilityError.Error
+              .mcpMissingRequiredClientCapabilityErrorError();
+      configure.accept(child);
+      return error(child.build());
+    }
 
     /**
      * Sets {@code error}.

@@ -1,8 +1,10 @@
 package io.github.suppierk.mcp.protocol;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * The result returned by the server for a {@link McpListPromptsRequest} ({@code prompts/list})
@@ -60,6 +62,32 @@ public record McpListPromptsResult(
     private Long ttlMs;
 
     private Builder() {}
+
+    /**
+     * Sets {@code meta} using a {@link McpResultMetaObject} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder meta(Consumer<McpResultMetaObject.Builder> configure) {
+      var child = McpResultMetaObject.mcpResultMetaObject();
+      configure.accept(child);
+      return meta(child.build());
+    }
+
+    /**
+     * Appends {@code prompts} using a {@link McpPrompt} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder prompt(Consumer<McpPrompt.Builder> configure) {
+      var child = McpPrompt.mcpPrompt();
+      configure.accept(child);
+      var values = new ArrayList<>(this.prompts == null ? List.of() : this.prompts);
+      values.add(child.build());
+      return prompts(values);
+    }
 
     /**
      * Sets {@code meta}.

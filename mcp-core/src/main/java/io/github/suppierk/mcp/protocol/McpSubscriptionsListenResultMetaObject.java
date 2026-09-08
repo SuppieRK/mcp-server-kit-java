@@ -2,6 +2,7 @@ package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * Metadata for a {@link McpSubscriptionsListenResult}. It contains the subscription stream
@@ -43,6 +44,18 @@ public record McpSubscriptionsListenResultMetaObject(
     private Object subscriptionId;
 
     private Builder() {}
+
+    /**
+     * Sets {@code serverInfo} using a {@link McpImplementation} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder serverInfo(Consumer<McpImplementation.Builder> configure) {
+      var child = McpImplementation.mcpImplementation();
+      configure.accept(child);
+      return serverInfo(child.build());
+    }
 
     /**
      * Sets {@code serverInfo}.

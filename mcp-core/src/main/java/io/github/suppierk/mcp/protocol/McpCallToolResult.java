@@ -1,8 +1,10 @@
 package io.github.suppierk.mcp.protocol;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * The result returned by the server for a {@link McpCallToolRequest} ({@code tools/call}) request.
@@ -93,6 +95,88 @@ public record McpCallToolResult(
     private Optional<Object> structuredContent = Optional.empty();
 
     private Builder() {}
+
+    /**
+     * Sets {@code meta} using a {@link McpResultMetaObject} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder meta(Consumer<McpResultMetaObject.Builder> configure) {
+      var child = McpResultMetaObject.mcpResultMetaObject();
+      configure.accept(child);
+      return meta(child.build());
+    }
+
+    /**
+     * Appends {@code content} using a {@link McpAudioContent} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder audioContent(Consumer<McpAudioContent.Builder> configure) {
+      var child = McpAudioContent.mcpAudioContent();
+      configure.accept(child);
+      var values = new ArrayList<>(this.content == null ? List.of() : this.content);
+      values.add(child.build());
+      return content(values);
+    }
+
+    /**
+     * Appends {@code content} using a {@link McpEmbeddedResource} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder embeddedResource(Consumer<McpEmbeddedResource.Builder> configure) {
+      var child = McpEmbeddedResource.mcpEmbeddedResource();
+      configure.accept(child);
+      var values = new ArrayList<>(this.content == null ? List.of() : this.content);
+      values.add(child.build());
+      return content(values);
+    }
+
+    /**
+     * Appends {@code content} using a {@link McpImageContent} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder imageContent(Consumer<McpImageContent.Builder> configure) {
+      var child = McpImageContent.mcpImageContent();
+      configure.accept(child);
+      var values = new ArrayList<>(this.content == null ? List.of() : this.content);
+      values.add(child.build());
+      return content(values);
+    }
+
+    /**
+     * Appends {@code content} using a {@link McpResourceLink} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder resourceLink(Consumer<McpResourceLink.Builder> configure) {
+      var child = McpResourceLink.mcpResourceLink();
+      configure.accept(child);
+      var values = new ArrayList<>(this.content == null ? List.of() : this.content);
+      values.add(child.build());
+      return content(values);
+    }
+
+    /**
+     * Appends {@code content} using a {@link McpTextContent} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder textContent(Consumer<McpTextContent.Builder> configure) {
+      var child = McpTextContent.mcpTextContent();
+      configure.accept(child);
+      var values = new ArrayList<>(this.content == null ? List.of() : this.content);
+      values.add(child.build());
+      return content(values);
+    }
 
     /**
      * Sets {@code meta}.

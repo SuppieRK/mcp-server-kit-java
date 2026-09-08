@@ -2,6 +2,7 @@ package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * Common result fields.
@@ -37,6 +38,18 @@ public record McpResult(Optional<McpResultMetaObject> meta, String resultType)
     private String resultType;
 
     private Builder() {}
+
+    /**
+     * Sets {@code meta} using a {@link McpResultMetaObject} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder meta(Consumer<McpResultMetaObject.Builder> configure) {
+      var child = McpResultMetaObject.mcpResultMetaObject();
+      configure.accept(child);
+      return meta(child.build());
+    }
 
     /**
      * Sets {@code meta}.

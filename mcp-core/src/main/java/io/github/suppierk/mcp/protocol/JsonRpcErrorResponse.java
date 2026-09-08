@@ -2,6 +2,7 @@ package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * An unsuccessful JSON-RPC response.
@@ -89,6 +90,18 @@ public record JsonRpcErrorResponse(Object id, McpError error) implements JsonRpc
     private McpError error;
 
     private Builder() {}
+
+    /**
+     * Sets {@code error} using a {@link McpError} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder error(Consumer<McpError.Builder> configure) {
+      var child = McpError.mcpError();
+      configure.accept(child);
+      return error(child.build());
+    }
 
     /**
      * Sets {@code id}.

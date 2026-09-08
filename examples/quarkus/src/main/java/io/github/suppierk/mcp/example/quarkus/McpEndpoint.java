@@ -1,10 +1,10 @@
 package io.github.suppierk.mcp.example.quarkus;
 
+import static io.github.suppierk.mcp.server.McpServerKit.mcpServerKit;
+
 import io.github.suppierk.mcp.protocol.McpCallToolResult;
 import io.github.suppierk.mcp.protocol.McpTextContent;
-import io.github.suppierk.mcp.protocol.McpTool;
 import io.github.suppierk.mcp.server.McpEmptyContext;
-import io.github.suppierk.mcp.server.McpServerKit;
 import io.github.suppierk.mcp.transport.http.HttpAcceptedResponse;
 import io.github.suppierk.mcp.transport.http.HttpEventStreamResponse;
 import io.github.suppierk.mcp.transport.http.HttpJsonResponse;
@@ -23,25 +23,34 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.StreamingOutput;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 /** Exposes MCP building blocks through Quarkus REST with host-owned authorization. */
 @Path("/mcp")
 public final class McpEndpoint {
   private final StreamableHttpMcpTransport<McpEmptyContext> publicTransport =
       new StreamableHttpMcpTransport<>(
-          McpServerKit.builder("quarkus-public", "1.0.0", McpEmptyContext.class)
+          mcpServerKit("quarkus-public", "1.0.0", McpEmptyContext.class)
               .syncTool(
-                  new McpTool("hello", emptyInputSchema()),
-                  (applicationContext, request, handlerContext) -> textResult("Hello, World!"))
+                  registration ->
+                      registration
+                          .name("hello")
+                          .handler(
+                              (applicationContext, request, handlerContext) ->
+                                  new McpCallToolResult(
+                                      List.of(new McpTextContent("Hello, World!")))))
               .build());
   private final StreamableHttpMcpTransport<SecurityIdentity> protectedTransport =
       new StreamableHttpMcpTransport<>(
-          McpServerKit.builder("quarkus-protected", "1.0.0", SecurityIdentity.class)
+          mcpServerKit("quarkus-protected", "1.0.0", SecurityIdentity.class)
               .syncTool(
-                  new McpTool("current-user", emptyInputSchema()),
-                  (identity, request, handlerContext) ->
-                      textResult(identity.getPrincipal().getName()))
+                  registration ->
+                      registration
+                          .name("current-user")
+                          .handler(
+                              (identity, request, handlerContext) ->
+                                  new McpCallToolResult(
+                                      List.of(
+                                          new McpTextContent(identity.getPrincipal().getName())))))
               .build());
 
   @Inject SecurityIdentity securityIdentity;
@@ -101,15 +110,5 @@ public final class McpEndpoint {
     HttpEventStreamResponse stream = (HttpEventStreamResponse) response;
     StreamingOutput output = stream::writeTo;
     return builder.entity(output).build();
-  }
-
-  /** Creates a closed schema for a tool that accepts no arguments. */
-  private static Map<String, ?> emptyInputSchema() {
-    return Map.of("type", "object", "additionalProperties", false);
-  }
-
-  /** Creates one successful text tool result. */
-  private static McpCallToolResult textResult(String text) {
-    return new McpCallToolResult(List.of(new McpTextContent(text)));
   }
 }

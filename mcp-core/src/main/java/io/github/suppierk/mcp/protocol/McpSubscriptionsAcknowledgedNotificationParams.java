@@ -2,6 +2,7 @@ package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * Parameters for a {@link McpSubscriptionsAcknowledgedNotification} ({@code
@@ -37,6 +38,30 @@ public record McpSubscriptionsAcknowledgedNotificationParams(
     private McpSubscriptionFilter notifications;
 
     private Builder() {}
+
+    /**
+     * Sets {@code meta} using a {@link McpNotificationMetaObject} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder meta(Consumer<McpNotificationMetaObject.Builder> configure) {
+      var child = McpNotificationMetaObject.mcpNotificationMetaObject();
+      configure.accept(child);
+      return meta(child.build());
+    }
+
+    /**
+     * Sets {@code notifications} using a {@link McpSubscriptionFilter} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder notifications(Consumer<McpSubscriptionFilter.Builder> configure) {
+      var child = McpSubscriptionFilter.mcpSubscriptionFilter();
+      configure.accept(child);
+      return notifications(child.build());
+    }
 
     /**
      * Sets {@code meta}.

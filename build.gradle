@@ -1,5 +1,8 @@
+import groovy.xml.XmlSlurper
+
 plugins {
-	id 'com.diffplug.spotless' apply false
+	id 'checkstyle'
+	id 'com.diffplug.spotless'
 	id 'com.vanniktech.maven.publish' apply false
 	id 'org.sonarqube'
 }
@@ -8,9 +11,16 @@ group = providers.gradleProperty('GROUP').get()
 version = providers.gradleProperty('VERSION_NAME').get()
 description = providers.gradleProperty('POM_DESCRIPTION').get()
 
+spotless {
+	java {
+		target 'config/architecture/*.java'
+		googleJavaFormat('1.30.0').reorderImports(false)
+	}
+}
+
 ext.versions = [
 	archunit: '1.5.0',
-	checkstyle: '12.3.1',
+	checkstyle: '14.1.0',
 	equalsverifier: '4.5.1',
 	jackson: '2.22.2',
 	privateJackson: '3.2.2',
@@ -31,6 +41,65 @@ def publishedModules = [
 	'mcp-spring-webflux',
 	'mcp-javalin'
 ]
+
+checkstyle {
+	toolVersion = versions.checkstyle
+	configFile = file('config/checkstyle/java.xml')
+	ignoreFailures = false
+	maxErrors = 0
+	maxWarnings = 0
+}
+
+// Run the actual policy against fixtures. Only this task accepts Checkstyle violations, and its
+// assertion requires exactly the manually annotated findings (including zero for valid fixtures).
+def verifyCheckstyleRules = tasks.register('verifyCheckstyleRules', Checkstyle) {
+	group = 'verification'
+	description = 'Verifies the Checkstyle policy with positive and negative Java fixtures.'
+	source fileTree('config/checkstyle/fixtures') { include '*.java' }
+	classpath = files()
+	ignoreFailures = true
+	showViolations = false
+	doLast {
+		def expected = []
+		source.files.each { fixture ->
+			fixture.readLines('UTF-8').eachWithIndex { line, index ->
+				def marker = line =~ /\/\/ expect(-next)?: ([A-Za-z, ]+)$/
+				if (marker.find()) {
+					def lineNumber = index + (marker.group(1) ? 2 : 1)
+					marker.group(2).split(',').each { rule ->
+						expected.add("${fixture.name}:${lineNumber}:${rule.trim()}Check".toString())
+					}
+				}
+			}
+		}
+		def actual = []
+		new XmlSlurper().parse(reports.xml.outputLocation.get().asFile).file.each { report ->
+			report.error.each { violation ->
+				def rule = violation.@source.text().tokenize('.').last()
+				actual.add("${new File(report.@name.text()).name}:${violation.@line}:${rule}".toString())
+			}
+		}
+		assert !expected.empty : 'Checkstyle fixtures must include negative cases'
+		assert actual.sort() == expected.sort() : "Checkstyle fixture mismatch. Expected ${expected}; found ${actual}"
+		logger.lifecycle("Checkstyle fixtures passed: ${source.files.size()} files, ${expected.size()} expected violations.")
+	}
+}
+
+def checkstyleAllJava = tasks.register('checkstyleAllJava', Checkstyle) {
+	group = 'verification'
+	description = 'Checks hygiene and correctness in all handwritten Java sources.'
+	dependsOn verifyCheckstyleRules
+	rootProject.subprojects.each { module ->
+		source fileTree(module.file('src')) {
+			include '**/java/**/*.java'
+		}
+	}
+	source fileTree('config') {
+		include '**/*.java'
+		exclude 'checkstyle/fixtures/**'
+	}
+	classpath = files()
+}
 
 def verifyPublishingConfiguration = tasks.register('verifyPublishingConfiguration') {
 	group = 'verification'
@@ -105,6 +174,8 @@ subprojects {
 		}
 		tasks.named('check') {
 			dependsOn tasks.named('spotlessCheck')
+			dependsOn rootProject.tasks.named('spotlessCheck')
+			dependsOn checkstyleAllJava
 		}
 	}
 }
@@ -113,12 +184,21 @@ configure(subprojects.findAll { it.name in publishedModules }) {
 	apply plugin: 'checkstyle'
 
 	pluginManager.withPlugin('java') {
+		// One public-builder contract, exercised on every published module's runtime classpath.
+		sourceSets.test.java.srcDir rootProject.file('config/architecture')
+		dependencies {
+			testImplementation "com.tngtech.archunit:archunit:${rootProject.ext.versions.archunit}"
+		}
 		checkstyle {
 			toolVersion = rootProject.ext.versions.checkstyle
 			configFile = rootProject.file('config/checkstyle/checkstyle.xml')
+			ignoreFailures = false
+			maxErrors = 0
+			maxWarnings = 0
 		}
 
 		tasks.withType(Checkstyle).configureEach {
+			// Production-only documentation policy; checkstyleAllJava covers test hygiene too.
 			enabled = name == 'checkstyleMain'
 		}
 		tasks.withType(Javadoc).configureEach {

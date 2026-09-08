@@ -2,6 +2,7 @@ package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * Reports that HTTP routing headers do not match the JSON-RPC body.
@@ -73,7 +74,7 @@ public record McpHeaderMismatchError(Error error, Optional<Object> id) implement
      *
      * @return a new builder
      */
-    public static Builder error() {
+    public static Builder mcpHeaderMismatchErrorError() {
       return new Builder();
     }
 
@@ -142,6 +143,18 @@ public record McpHeaderMismatchError(Error error, Optional<Object> id) implement
     private Optional<Object> id = Optional.empty();
 
     private Builder() {}
+
+    /**
+     * Sets {@code error} using a {@link McpHeaderMismatchError.Error} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder error(Consumer<McpHeaderMismatchError.Error.Builder> configure) {
+      var child = McpHeaderMismatchError.Error.mcpHeaderMismatchErrorError();
+      configure.accept(child);
+      return error(child.build());
+    }
 
     /**
      * Sets {@code error}.

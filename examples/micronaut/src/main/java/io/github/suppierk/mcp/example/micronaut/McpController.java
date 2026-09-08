@@ -1,10 +1,10 @@
 package io.github.suppierk.mcp.example.micronaut;
 
+import static io.github.suppierk.mcp.server.McpServerKit.mcpServerKit;
+
 import io.github.suppierk.mcp.protocol.McpCallToolResult;
 import io.github.suppierk.mcp.protocol.McpTextContent;
-import io.github.suppierk.mcp.protocol.McpTool;
 import io.github.suppierk.mcp.server.McpEmptyContext;
-import io.github.suppierk.mcp.server.McpServerKit;
 import io.github.suppierk.mcp.transport.http.HttpAcceptedResponse;
 import io.github.suppierk.mcp.transport.http.HttpEventStreamResponse;
 import io.github.suppierk.mcp.transport.http.HttpJsonResponse;
@@ -23,7 +23,6 @@ import io.micronaut.security.authentication.Authentication;
 import io.micronaut.security.rules.SecurityRule;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import org.reactivestreams.FlowAdapters;
 
 /** Exposes MCP building blocks through Micronaut HTTP with host-owned authorization. */
@@ -31,17 +30,27 @@ import org.reactivestreams.FlowAdapters;
 public final class McpController {
   private final StreamableHttpMcpTransport<McpEmptyContext> publicTransport =
       new StreamableHttpMcpTransport<>(
-          McpServerKit.builder("micronaut-public", "1.0.0", McpEmptyContext.class)
+          mcpServerKit("micronaut-public", "1.0.0", McpEmptyContext.class)
               .syncTool(
-                  new McpTool("hello", emptyInputSchema()),
-                  (applicationContext, request, handlerContext) -> textResult("Hello, World!"))
+                  registration ->
+                      registration
+                          .name("hello")
+                          .handler(
+                              (applicationContext, request, handlerContext) ->
+                                  new McpCallToolResult(
+                                      List.of(new McpTextContent("Hello, World!")))))
               .build());
   private final StreamableHttpMcpTransport<Authentication> protectedTransport =
       new StreamableHttpMcpTransport<>(
-          McpServerKit.builder("micronaut-protected", "1.0.0", Authentication.class)
+          mcpServerKit("micronaut-protected", "1.0.0", Authentication.class)
               .syncTool(
-                  new McpTool("current-user", emptyInputSchema()),
-                  (authentication, request, handlerContext) -> textResult(authentication.getName()))
+                  registration ->
+                      registration
+                          .name("current-user")
+                          .handler(
+                              (authentication, request, handlerContext) ->
+                                  new McpCallToolResult(
+                                      List.of(new McpTextContent(authentication.getName())))))
               .build());
 
   /** Creates the controller. */
@@ -102,15 +111,5 @@ public final class McpController {
               buffer.get(bytes);
               return bytes;
             }));
-  }
-
-  /** Creates a closed schema for a tool that accepts no arguments. */
-  private static Map<String, ?> emptyInputSchema() {
-    return Map.of("type", "object", "additionalProperties", false);
-  }
-
-  /** Creates one successful text tool result. */
-  private static McpCallToolResult textResult(String text) {
-    return new McpCallToolResult(List.of(new McpTextContent(text)));
   }
 }

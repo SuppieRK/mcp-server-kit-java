@@ -29,7 +29,7 @@ class JsonRpcNotificationTest {
     assertThrows(
         UnsupportedOperationException.class,
         () -> ((List<?>) notification.params().get("entries")).clear());
-    try (var kit = McpServerKit.builder("notification", "1", McpEmptyContext.class).build()) {
+    try (var kit = McpServerKit.mcpServerKit("notification", "1", McpEmptyContext.class).build()) {
       assertEquals(notification, kit.decode(kit.encode(notification)));
     }
   }

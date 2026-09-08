@@ -2,6 +2,7 @@ package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * Extends {@code MetaObject} with additional result-specific fields. All key naming rules from
@@ -30,6 +31,18 @@ public record McpResultMetaObject(Optional<McpImplementation> serverInfo) {
     private Optional<McpImplementation> serverInfo = Optional.empty();
 
     private Builder() {}
+
+    /**
+     * Sets {@code serverInfo} using a {@link McpImplementation} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder serverInfo(Consumer<McpImplementation.Builder> configure) {
+      var child = McpImplementation.mcpImplementation();
+      configure.accept(child);
+      return serverInfo(child.build());
+    }
 
     /**
      * Sets {@code serverInfo}.

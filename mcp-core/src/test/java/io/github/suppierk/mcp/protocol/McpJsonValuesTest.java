@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 class McpJsonValuesTest {
   @Test
   void distinguishesExplicitNullFromAbsentOptionalMembers() {
-    try (var kit = McpServerKit.builder("nulls", "1", McpEmptyContext.class).build()) {
+    try (var kit = McpServerKit.mcpServerKit("nulls", "1", McpEmptyContext.class).build()) {
       var explicit =
           McpCallToolResult.mcpCallToolResult()
               .content(List.of())
@@ -76,7 +76,7 @@ class McpJsonValuesTest {
         }}
         """
             .getBytes(StandardCharsets.UTF_8);
-    try (var kit = McpServerKit.builder("numbers", "1", McpEmptyContext.class).build()) {
+    try (var kit = McpServerKit.mcpServerKit("numbers", "1", McpEmptyContext.class).build()) {
       var notification = assertInstanceOf(JsonRpcNotification.class, kit.decode(wire));
       assertEquals(
           new BigInteger("123456789012345678901234567890"), notification.params().get("integer"));

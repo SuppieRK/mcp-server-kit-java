@@ -1,6 +1,7 @@
 package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * Sent by the server to acknowledge that a {@link McpSubscriptionsListenRequest} ({@code
@@ -57,6 +58,21 @@ public record McpSubscriptionsAcknowledgedNotification(
     private McpSubscriptionsAcknowledgedNotificationParams params;
 
     private Builder() {}
+
+    /**
+     * Sets {@code params} using a {@link McpSubscriptionsAcknowledgedNotificationParams} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder params(
+        Consumer<McpSubscriptionsAcknowledgedNotificationParams.Builder> configure) {
+      var child =
+          McpSubscriptionsAcknowledgedNotificationParams
+              .mcpSubscriptionsAcknowledgedNotificationParams();
+      configure.accept(child);
+      return params(child.build());
+    }
 
     /**
      * Sets {@code params}.

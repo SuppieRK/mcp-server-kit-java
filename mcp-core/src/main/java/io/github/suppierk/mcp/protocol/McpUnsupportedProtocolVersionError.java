@@ -3,6 +3,7 @@ package io.github.suppierk.mcp.protocol;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * Reports an unsupported MCP revision.
@@ -66,7 +67,7 @@ public record McpUnsupportedProtocolVersionError(Error error, Optional<Object> i
      *
      * @return a new builder
      */
-    public static Builder error() {
+    public static Builder mcpUnsupportedProtocolVersionErrorError() {
       return new Builder();
     }
 
@@ -76,6 +77,19 @@ public record McpUnsupportedProtocolVersionError(Error error, Optional<Object> i
       private Data data;
 
       private Builder() {}
+
+      /**
+       * Sets {@code data} using a {@link McpUnsupportedProtocolVersionError.Data} builder.
+       *
+       * @param configure the child configuration, invoked once before this builder changes
+       * @return this builder
+       */
+      public Builder data(Consumer<McpUnsupportedProtocolVersionError.Data.Builder> configure) {
+        var child =
+            McpUnsupportedProtocolVersionError.Data.mcpUnsupportedProtocolVersionErrorData();
+        configure.accept(child);
+        return data(child.build());
+      }
 
       /**
        * Sets {@code message}.
@@ -128,7 +142,7 @@ public record McpUnsupportedProtocolVersionError(Error error, Optional<Object> i
      *
      * @return a new builder
      */
-    public static Builder data() {
+    public static Builder mcpUnsupportedProtocolVersionErrorData() {
       return new Builder();
     }
 
@@ -187,6 +201,19 @@ public record McpUnsupportedProtocolVersionError(Error error, Optional<Object> i
     private Optional<Object> id = Optional.empty();
 
     private Builder() {}
+
+    /**
+     * Sets {@code error} using a {@link McpUnsupportedProtocolVersionError.Error} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder error(Consumer<McpUnsupportedProtocolVersionError.Error.Builder> configure) {
+      var child =
+          McpUnsupportedProtocolVersionError.Error.mcpUnsupportedProtocolVersionErrorError();
+      configure.accept(child);
+      return error(child.build());
+    }
 
     /**
      * Sets {@code error}.

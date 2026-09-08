@@ -1,6 +1,7 @@
 package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * Used by the client to get a prompt provided by the server.
@@ -63,6 +64,18 @@ public record McpGetPromptRequest(Object id, McpGetPromptRequestParams params)
     private McpGetPromptRequestParams params;
 
     private Builder() {}
+
+    /**
+     * Sets {@code params} using a {@link McpGetPromptRequestParams} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder params(Consumer<McpGetPromptRequestParams.Builder> configure) {
+      var child = McpGetPromptRequestParams.mcpGetPromptRequestParams();
+      configure.accept(child);
+      return params(child.build());
+    }
 
     /**
      * Sets {@code id}.

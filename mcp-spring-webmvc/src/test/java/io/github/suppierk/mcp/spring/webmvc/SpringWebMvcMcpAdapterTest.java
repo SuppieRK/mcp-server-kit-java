@@ -25,7 +25,7 @@ class SpringWebMvcMcpAdapterTest {
   private final SpringWebMvcMcpAdapter<McpEmptyContext> adapter =
       new SpringWebMvcMcpAdapter<>(
           new StreamableHttpMcpTransport<>(
-              McpServerKit.builder("mvc-test", "1", McpEmptyContext.class).build()));
+              McpServerKit.mcpServerKit("mvc-test", "1", McpEmptyContext.class).build()));
 
   @Test
   void mapsJson() throws Exception {
@@ -95,7 +95,7 @@ class SpringWebMvcMcpAdapterTest {
   void passesTheExactApplicationContextAndRejectsNullImmediately() {
     AtomicReference<ApplicationContext> seen = new AtomicReference<>();
     var serverKit =
-        McpServerKit.builder("mvc-context", "1", ApplicationContext.class)
+        McpServerKit.mcpServerKit("mvc-context", "1", ApplicationContext.class)
             .syncMethod(
                 "context",
                 (applicationContext, call, handlerContext) -> {

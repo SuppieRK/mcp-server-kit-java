@@ -23,7 +23,7 @@ class JavalinMcpAdapterTest {
   @Test
   void mapsJsonAcceptedAndEventStreamResponses() throws Exception {
     McpServerKit<McpEmptyContext> server =
-        McpServerKit.builder("javalin-test", "1", McpEmptyContext.class).build();
+        McpServerKit.mcpServerKit("javalin-test", "1", McpEmptyContext.class).build();
     JavalinMcpAdapter<McpEmptyContext> adapter =
         new JavalinMcpAdapter<>(new StreamableHttpMcpTransport<>(server));
     Javalin application =
@@ -55,7 +55,7 @@ class JavalinMcpAdapterTest {
   void passesTheExactApplicationContextAndRejectsNullImmediately() throws Exception {
     AtomicReference<ApplicationContext> seen = new AtomicReference<>();
     var serverKit =
-        McpServerKit.builder("javalin-context", "1", ApplicationContext.class)
+        McpServerKit.mcpServerKit("javalin-context", "1", ApplicationContext.class)
             .syncMethod(
                 "context",
                 (applicationContext, call, handlerContext) -> {

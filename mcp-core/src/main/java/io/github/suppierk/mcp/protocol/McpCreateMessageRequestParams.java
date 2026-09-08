@@ -1,9 +1,11 @@
 package io.github.suppierk.mcp.protocol;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * Parameters for a {@code sampling/createMessage} request.
@@ -41,7 +43,7 @@ public record McpCreateMessageRequestParams(
     Optional<String> systemPrompt,
     Optional<Double> temperature,
     Optional<McpToolChoice> toolChoice,
-    Optional<List<McpTool>> tools) {
+    Optional<List<Map<String, ?>>> tools) {
   /** Validates and copies the protocol fields. */
   public McpCreateMessageRequestParams {
     Objects.requireNonNull(includeContext, "includeContext");
@@ -53,7 +55,8 @@ public record McpCreateMessageRequestParams(
     Objects.requireNonNull(systemPrompt, "systemPrompt");
     Objects.requireNonNull(temperature, "temperature");
     Objects.requireNonNull(toolChoice, "toolChoice");
-    tools = Objects.requireNonNull(tools, "tools").map(List::copyOf);
+    tools =
+        Objects.requireNonNull(tools, "tools").map(values -> McpProtocol.copy(List.copyOf(values)));
   }
 
   /**
@@ -85,9 +88,47 @@ public record McpCreateMessageRequestParams(
     private Optional<String> systemPrompt = Optional.empty();
     private Optional<Double> temperature = Optional.empty();
     private Optional<McpToolChoice> toolChoice = Optional.empty();
-    private Optional<List<McpTool>> tools = Optional.empty();
+    private Optional<List<Map<String, ?>>> tools = Optional.empty();
 
     private Builder() {}
+
+    /**
+     * Appends {@code messages} using a {@link McpSamplingMessage} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder samplingMessage(Consumer<McpSamplingMessage.Builder> configure) {
+      var child = McpSamplingMessage.mcpSamplingMessage();
+      configure.accept(child);
+      var values = new ArrayList<>(this.messages == null ? List.of() : this.messages);
+      values.add(child.build());
+      return messages(values);
+    }
+
+    /**
+     * Sets {@code modelPreferences} using a {@link McpModelPreferences} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder modelPreferences(Consumer<McpModelPreferences.Builder> configure) {
+      var child = McpModelPreferences.mcpModelPreferences();
+      configure.accept(child);
+      return modelPreferences(child.build());
+    }
+
+    /**
+     * Sets {@code toolChoice} using a {@link McpToolChoice} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder toolChoice(Consumer<McpToolChoice.Builder> configure) {
+      var child = McpToolChoice.mcpToolChoice();
+      configure.accept(child);
+      return toolChoice(child.build());
+    }
 
     /**
      * Sets {@code includeContext}.
@@ -264,7 +305,7 @@ public record McpCreateMessageRequestParams(
      * @param tools the optional value
      * @return this builder
      */
-    public Builder tools(Optional<List<McpTool>> tools) {
+    public Builder tools(Optional<List<Map<String, ?>>> tools) {
       this.tools = tools;
       return this;
     }
@@ -275,7 +316,7 @@ public record McpCreateMessageRequestParams(
      * @param tools the value, or {@code null} to clear it
      * @return this builder
      */
-    public Builder tools(List<McpTool> tools) {
+    public Builder tools(List<Map<String, ?>> tools) {
       return tools(Optional.ofNullable(tools));
     }
 

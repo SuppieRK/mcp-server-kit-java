@@ -3,6 +3,7 @@ package io.github.suppierk.mcp.protocol;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * Extends {@code MetaObject} with additional request-specific fields. All key naming rules from
@@ -74,6 +75,30 @@ public record McpRequestMetaObject(
     private Map<String, ?> extensions = Map.of();
 
     private Builder() {}
+
+    /**
+     * Sets {@code clientCapabilities} using a {@link McpClientCapabilities} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder clientCapabilities(Consumer<McpClientCapabilities.Builder> configure) {
+      var child = McpClientCapabilities.mcpClientCapabilities();
+      configure.accept(child);
+      return clientCapabilities(child.build());
+    }
+
+    /**
+     * Sets {@code clientInfo} using a {@link McpImplementation} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder clientInfo(Consumer<McpImplementation.Builder> configure) {
+      var child = McpImplementation.mcpImplementation();
+      configure.accept(child);
+      return clientInfo(child.build());
+    }
 
     /**
      * Sets {@code clientCapabilities}.

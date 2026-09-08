@@ -1,8 +1,10 @@
 package io.github.suppierk.mcp.protocol;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * Advisory model-selection preferences for sampling. The client may ignore them.
@@ -44,6 +46,20 @@ public record McpModelPreferences(
     private Optional<Double> speedPriority = Optional.empty();
 
     private Builder() {}
+
+    /**
+     * Appends {@code hints} using a {@link McpModelHint} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder modelHint(Consumer<McpModelHint.Builder> configure) {
+      var child = McpModelHint.mcpModelHint();
+      configure.accept(child);
+      var values = new ArrayList<>(this.hints.orElseGet(List::of));
+      values.add(child.build());
+      return hints(values);
+    }
 
     /**
      * Sets {@code costPriority}.

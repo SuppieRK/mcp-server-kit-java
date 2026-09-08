@@ -1,8 +1,10 @@
 package io.github.suppierk.mcp.protocol;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * The result returned by the server for a {@link McpListToolsRequest} ({@code tools/list}) request.
@@ -27,7 +29,7 @@ public record McpListToolsResult(
     String cacheScope,
     Optional<String> nextCursor,
     String resultType,
-    List<McpTool> tools,
+    List<Map<String, ?>> tools,
     Long ttlMs)
     implements McpServerResult {
   /** Validates and copies the protocol fields. */
@@ -36,7 +38,7 @@ public record McpListToolsResult(
     Objects.requireNonNull(cacheScope, "cacheScope");
     Objects.requireNonNull(nextCursor, "nextCursor");
     Objects.requireNonNull(resultType, "resultType");
-    tools = List.copyOf(tools);
+    tools = McpProtocol.copy(List.copyOf(tools));
     Objects.requireNonNull(ttlMs, "ttlMs");
   }
 
@@ -55,10 +57,22 @@ public record McpListToolsResult(
     private String cacheScope;
     private Optional<String> nextCursor = Optional.empty();
     private String resultType;
-    private List<McpTool> tools;
+    private List<Map<String, ?>> tools;
     private Long ttlMs;
 
     private Builder() {}
+
+    /**
+     * Sets {@code meta} using a {@link McpResultMetaObject} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder meta(Consumer<McpResultMetaObject.Builder> configure) {
+      var child = McpResultMetaObject.mcpResultMetaObject();
+      configure.accept(child);
+      return meta(child.build());
+    }
 
     /**
      * Sets {@code meta}.
@@ -130,7 +144,7 @@ public record McpListToolsResult(
      * @param tools the value
      * @return this builder
      */
-    public Builder tools(List<McpTool> tools) {
+    public Builder tools(List<Map<String, ?>> tools) {
       this.tools = tools;
       return this;
     }

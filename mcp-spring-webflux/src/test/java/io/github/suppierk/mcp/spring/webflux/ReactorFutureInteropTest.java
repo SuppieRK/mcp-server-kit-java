@@ -13,7 +13,6 @@ import io.github.suppierk.mcp.protocol.McpCallToolResult;
 import io.github.suppierk.mcp.protocol.McpCallToolResultResponse;
 import io.github.suppierk.mcp.protocol.McpProtocol;
 import io.github.suppierk.mcp.protocol.McpTextContent;
-import io.github.suppierk.mcp.protocol.McpTool;
 import io.github.suppierk.mcp.server.McpEmptyContext;
 import io.github.suppierk.mcp.server.McpInternalException;
 import io.github.suppierk.mcp.server.McpServerKit;
@@ -34,11 +33,15 @@ class ReactorFutureInteropTest {
   @Test
   void nonEmptyMonoProducesOneNonNullAsynchronousToolResult() {
     var kit =
-        McpServerKit.builder("reactor", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("reactor", "1", McpEmptyContext.class)
             .asyncTool(
-                tool(),
-                (applicationContext, request, handlerContext) ->
-                    Mono.just(toolResult("reactor-value")).toFuture())
+                registration ->
+                    registration
+                        .name("reactor")
+                        .inputSchema(Map.of("type", "object"))
+                        .handler(
+                            (applicationContext, request, handlerContext) ->
+                                Mono.just(toolResult("reactor-value")).toFuture()))
             .build();
 
     JsonRpcMessage message = invoke(kit, toolCall(1));
@@ -55,15 +58,19 @@ class ReactorFutureInteropTest {
     var applicationFuture = new AtomicReference<CompletableFuture<McpCallToolResult>>();
     var sourceFailure = new IllegalStateException("reactor-failure");
     var kit =
-        McpServerKit.builder("reactor", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("reactor", "1", McpEmptyContext.class)
             .asyncTool(
-                tool(),
-                (applicationContext, request, handlerContext) -> {
-                  CompletableFuture<McpCallToolResult> future =
-                      Mono.<McpCallToolResult>error(sourceFailure).toFuture();
-                  applicationFuture.set(future);
-                  return future;
-                })
+                registration ->
+                    registration
+                        .name("reactor")
+                        .inputSchema(Map.of("type", "object"))
+                        .handler(
+                            (applicationContext, request, handlerContext) -> {
+                              CompletableFuture<McpCallToolResult> future =
+                                  Mono.<McpCallToolResult>error(sourceFailure).toFuture();
+                              applicationFuture.set(future);
+                              return future;
+                            }))
             .build();
 
     JsonRpcMessage message = invoke(kit, toolCall(2));
@@ -79,15 +86,21 @@ class ReactorFutureInteropTest {
     var cancelled = new CountDownLatch(1);
     var applicationFuture = new AtomicReference<CompletableFuture<McpCallToolResult>>();
     var kit =
-        McpServerKit.builder("reactor", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("reactor", "1", McpEmptyContext.class)
             .asyncTool(
-                tool(),
-                (applicationContext, request, handlerContext) -> {
-                  CompletableFuture<McpCallToolResult> future =
-                      Mono.<McpCallToolResult>never().doOnCancel(cancelled::countDown).toFuture();
-                  applicationFuture.set(future);
-                  return future;
-                })
+                registration ->
+                    registration
+                        .name("reactor")
+                        .inputSchema(Map.of("type", "object"))
+                        .handler(
+                            (applicationContext, request, handlerContext) -> {
+                              CompletableFuture<McpCallToolResult> future =
+                                  Mono.<McpCallToolResult>never()
+                                      .doOnCancel(cancelled::countDown)
+                                      .toFuture();
+                              applicationFuture.set(future);
+                              return future;
+                            }))
             .build();
     var subscriber = new RecordingSubscriber();
     kit.handle(McpEmptyContext.INSTANCE, toolCall(3)).subscribe(subscriber);
@@ -103,15 +116,19 @@ class ReactorFutureInteropTest {
   void emptyMonoCompletesWithNullAndBecomesAnInternalErrorResponse() {
     var applicationFuture = new AtomicReference<CompletableFuture<McpCallToolResult>>();
     var kit =
-        McpServerKit.builder("reactor", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("reactor", "1", McpEmptyContext.class)
             .asyncTool(
-                tool(),
-                (applicationContext, request, handlerContext) -> {
-                  CompletableFuture<McpCallToolResult> future =
-                      Mono.<McpCallToolResult>empty().toFuture();
-                  applicationFuture.set(future);
-                  return future;
-                })
+                registration ->
+                    registration
+                        .name("reactor")
+                        .inputSchema(Map.of("type", "object"))
+                        .handler(
+                            (applicationContext, request, handlerContext) -> {
+                              CompletableFuture<McpCallToolResult> future =
+                                  Mono.<McpCallToolResult>empty().toFuture();
+                              applicationFuture.set(future);
+                              return future;
+                            }))
             .build();
 
     JsonRpcMessage message = invoke(kit, toolCall(4));
@@ -120,10 +137,6 @@ class ReactorFutureInteropTest {
     var response = assertInstanceOf(JsonRpcErrorResponse.class, message);
     assertEquals(McpInternalException.CODE, response.code());
     assertEquals("Internal error", response.message());
-  }
-
-  private static McpTool tool() {
-    return new McpTool("reactor", Map.of("type", "object"));
   }
 
   private static McpCallToolResult toolResult(String value) {

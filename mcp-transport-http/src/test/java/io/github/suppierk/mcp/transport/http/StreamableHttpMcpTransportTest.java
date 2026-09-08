@@ -19,7 +19,6 @@ import io.github.suppierk.mcp.protocol.McpResourceUpdatedNotification;
 import io.github.suppierk.mcp.protocol.McpResourceUpdatedNotificationParams;
 import io.github.suppierk.mcp.protocol.McpTextContent;
 import io.github.suppierk.mcp.protocol.McpTextResourceContents;
-import io.github.suppierk.mcp.protocol.McpTool;
 import io.github.suppierk.mcp.server.McpEmptyContext;
 import io.github.suppierk.mcp.server.McpHandlerContext;
 import io.github.suppierk.mcp.server.McpServerKit;
@@ -57,7 +56,7 @@ class StreamableHttpMcpTransportTest {
     var secondResult = new CompletableFuture<JsonRpcResultResponse>();
     var firstCall = new AtomicBoolean(true);
     try (var server =
-        McpServerKit.builder("request-ids", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("request-ids", "1", McpEmptyContext.class)
             .asyncMethod(
                 "slow",
                 (applicationContext, call, handlerContext) ->
@@ -85,7 +84,7 @@ class StreamableHttpMcpTransportTest {
     var applicationFuture = new CompletableFuture<JsonRpcResultResponse>();
     var context = new AtomicReference<McpHandlerContext>();
     try (var server =
-        McpServerKit.builder("cancellation", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("cancellation", "1", McpEmptyContext.class)
             .asyncMethod(
                 "slow",
                 (applicationContext, call, handlerContext) -> {
@@ -115,7 +114,7 @@ class StreamableHttpMcpTransportTest {
   @Test
   void returnsJsonForAValidRequest() throws Exception {
     McpServerKit<McpEmptyContext> server =
-        McpServerKit.builder("http-test", "1", McpEmptyContext.class).build();
+        McpServerKit.mcpServerKit("http-test", "1", McpEmptyContext.class).build();
     StreamableHttpMcpTransport<McpEmptyContext> transport =
         new StreamableHttpMcpTransport<>(server);
 
@@ -147,7 +146,7 @@ class StreamableHttpMcpTransportTest {
   @Test
   void selectsEventStreamsFromRequestSemanticsRatherThanAccept() throws Exception {
     var server =
-        McpServerKit.builder("selection", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("selection", "1", McpEmptyContext.class)
             .syncMethod(
                 "work",
                 (applicationContext, call, handlerContext) ->
@@ -177,7 +176,7 @@ class StreamableHttpMcpTransportTest {
   @Test
   void validatesHttpEnvelopeBeforeDispatch() throws Exception {
     McpServerKit<McpEmptyContext> server =
-        McpServerKit.builder("http-test", "1", McpEmptyContext.class).build();
+        McpServerKit.mcpServerKit("http-test", "1", McpEmptyContext.class).build();
     StreamableHttpMcpTransport<McpEmptyContext> transport =
         new StreamableHttpMcpTransport<>(server);
     HttpMcpRequest valid = request("server/discover", "application/json", Map.of());
@@ -201,7 +200,7 @@ class StreamableHttpMcpTransportTest {
 
   @Test
   void returnsProtocolErrorForAnOutOfRangeErrorCode() throws Exception {
-    try (var server = McpServerKit.builder("http-test", "1", McpEmptyContext.class).build()) {
+    try (var server = McpServerKit.mcpServerKit("http-test", "1", McpEmptyContext.class).build()) {
       var transport = new StreamableHttpMcpTransport<>(server);
       var envelope = request("server/discover", "application/json", Map.of());
       String body =
@@ -222,7 +221,7 @@ class StreamableHttpMcpTransportTest {
   void rejectsStdioCancellationNotificationsWithoutCancellingHttpWork() throws Exception {
     var applicationFuture = new CompletableFuture<JsonRpcResultResponse>();
     var server =
-        McpServerKit.builder("notifications", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("notifications", "1", McpEmptyContext.class)
             .asyncMethod("slow", (applicationContext, call, handlerContext) -> applicationFuture)
             .build();
     var transport = new StreamableHttpMcpTransport<>(server);
@@ -265,7 +264,7 @@ class StreamableHttpMcpTransportTest {
 
   @Test
   void appliesAnExactImmutableOriginAllowlistBeforeOtherValidation() throws Exception {
-    var server = McpServerKit.builder("origins", "1", McpEmptyContext.class).build();
+    var server = McpServerKit.mcpServerKit("origins", "1", McpEmptyContext.class).build();
     var defaultTransport = new StreamableHttpMcpTransport<>(server);
     HttpMcpRequest valid = request("server/discover", "application/json", Map.of());
     var allowed = new HashSet<>(Set.of(URI.create("https://Example.COM")));
@@ -319,7 +318,7 @@ class StreamableHttpMcpTransportTest {
   void rejectsAmbiguousSingletonsButCombinesRepeatedAcceptFields() throws Exception {
     var transport =
         new StreamableHttpMcpTransport<>(
-            McpServerKit.builder("headers", "1", McpEmptyContext.class).build());
+            McpServerKit.mcpServerKit("headers", "1", McpEmptyContext.class).build());
     HttpMcpRequest discover = request("server/discover", "application/json", Map.of());
 
     assertEquals(
@@ -358,7 +357,7 @@ class StreamableHttpMcpTransportTest {
   void validatesMirroredHeadersForTypedRequests() throws Exception {
     StreamableHttpMcpTransport<McpEmptyContext> transport =
         new StreamableHttpMcpTransport<>(
-            McpServerKit.builder("http-test", "1", McpEmptyContext.class).build());
+            McpServerKit.mcpServerKit("http-test", "1", McpEmptyContext.class).build());
     ObjectNode tool = mapper.createObjectNode().put("name", "echo");
     tool.putObject("arguments").put("value", "expected");
     HttpMcpRequest toolRequest =
@@ -432,13 +431,17 @@ class StreamableHttpMcpTransportTest {
             Map.of("value", Map.of("type", type, "x-mcp-header", "Value")));
     var invoked = new AtomicBoolean();
     try (var server =
-        McpServerKit.builder("numeric-headers", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("numeric-headers", "1", McpEmptyContext.class)
             .syncTool(
-                new McpTool("echo", schema),
-                (applicationContext, parameters, handlerContext) -> {
-                  invoked.set(true);
-                  return new McpCallToolResult(List.of(new McpTextContent("called")));
-                })
+                registration ->
+                    registration
+                        .name("echo")
+                        .inputSchema(schema)
+                        .handler(
+                            (applicationContext, parameters, handlerContext) -> {
+                              invoked.set(true);
+                              return new McpCallToolResult(List.of(new McpTextContent("called")));
+                            }))
             .build()) {
       var transport = new StreamableHttpMcpTransport<>(server);
       ObjectNode call = mapper.createObjectNode().put("name", "echo");
@@ -483,13 +486,17 @@ class StreamableHttpMcpTransportTest {
                         Map.of("tenant", Map.of("type", "string", "x-mcp-header", "Tenant")))));
     var invoked = new AtomicBoolean();
     var server =
-        McpServerKit.builder("headers", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("headers", "1", McpEmptyContext.class)
             .syncTool(
-                new McpTool("route", schema),
-                (applicationContext, parameters, handlerContext) -> {
-                  invoked.set(true);
-                  return new McpCallToolResult(List.of(new McpTextContent("called")));
-                })
+                registration ->
+                    registration
+                        .name("route")
+                        .inputSchema(schema)
+                        .handler(
+                            (applicationContext, parameters, handlerContext) -> {
+                              invoked.set(true);
+                              return new McpCallToolResult(List.of(new McpTextContent("called")));
+                            }))
             .build();
     var transport = new StreamableHttpMcpTransport<>(server);
     ObjectNode call = mapper.createObjectNode().put("name", "route");
@@ -558,13 +565,17 @@ class StreamableHttpMcpTransportTest {
             Map.of("greeting", Map.of("type", "string", "x-mcp-header", "Greeting")));
     var invoked = new AtomicBoolean();
     var server =
-        McpServerKit.builder("encoding", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("encoding", "1", McpEmptyContext.class)
             .syncTool(
-                new McpTool("écho", schema),
-                (applicationContext, parameters, handlerContext) -> {
-                  invoked.set(true);
-                  return new McpCallToolResult(List.of(new McpTextContent("called")));
-                })
+                registration ->
+                    registration
+                        .name("écho")
+                        .inputSchema(schema)
+                        .handler(
+                            (applicationContext, parameters, handlerContext) -> {
+                              invoked.set(true);
+                              return new McpCallToolResult(List.of(new McpTextContent("called")));
+                            }))
             .build();
     var transport = new StreamableHttpMcpTransport<>(server);
     ObjectNode call = mapper.createObjectNode().put("name", "écho");
@@ -606,7 +617,7 @@ class StreamableHttpMcpTransportTest {
   void passesTheExactContextAndLeavesCallerIdentityToTheHost() throws Exception {
     AtomicReference<ApplicationContext> seen = new AtomicReference<>();
     var serverKit =
-        McpServerKit.builder("http-context", "1", ApplicationContext.class)
+        McpServerKit.mcpServerKit("http-context", "1", ApplicationContext.class)
             .syncMethod(
                 "context",
                 (applicationContext, call, handlerContext) -> {
@@ -632,7 +643,7 @@ class StreamableHttpMcpTransportTest {
   @Test
   void streamsAcknowledgementAndMatchingNotifications() throws Exception {
     McpServerKit<McpEmptyContext> server =
-        McpServerKit.builder("http-test", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("http-test", "1", McpEmptyContext.class)
             .syncResource(
                 new McpResource(URI.create("test://live"), "live"),
                 (applicationContext, call, handlerContext) ->

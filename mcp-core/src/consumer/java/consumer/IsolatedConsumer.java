@@ -1,11 +1,14 @@
 package consumer;
 
+import static io.github.suppierk.mcp.protocol.McpJsonSchema.mcpJsonObjectSchema;
+import static io.github.suppierk.mcp.protocol.McpJsonSchema.mcpJsonStringSchema;
+import static io.github.suppierk.mcp.server.McpServerKit.mcpServerKit;
+
 import io.github.suppierk.mcp.protocol.JsonRpcErrorResponse;
 import io.github.suppierk.mcp.protocol.JsonRpcMessage;
 import io.github.suppierk.mcp.protocol.JsonRpcNotification;
 import io.github.suppierk.mcp.protocol.McpCallToolResult;
 import io.github.suppierk.mcp.protocol.McpTextContent;
-import io.github.suppierk.mcp.protocol.McpTool;
 import io.github.suppierk.mcp.server.McpEmptyContext;
 import io.github.suppierk.mcp.server.McpServerKit;
 import java.lang.reflect.Modifier;
@@ -116,23 +119,23 @@ public final class IsolatedConsumer {
           "Independent host schema library");
     }
     var schema =
-        Map.<String, Object>of(
-            "$schema",
-            "https://json-schema.org/draft/2020-12/schema",
-            "type",
-            "object",
-            "required",
-            List.of("name"),
-            "properties",
-            Map.of("name", Map.of("$ref", "#/$defs/name")),
-            "$defs",
-            Map.of("name", Map.of("type", "string")));
+        mcpJsonObjectSchema(
+            object ->
+                object
+                    .keyword("$schema", "https://json-schema.org/draft/2020-12/schema")
+                    .required("name", Map.of("$ref", "#/$defs/name"))
+                    .keyword("$defs", Map.of("name", mcpJsonStringSchema())));
     try (var kit =
-        McpServerKit.builder("consumer", "1", McpEmptyContext.class)
+        mcpServerKit("consumer", "1", McpEmptyContext.class)
             .syncTool(
-                new McpTool("hello", schema),
-                (context, params, invocation) ->
-                    new McpCallToolResult(List.of(new McpTextContent("Hello, World!"))))
+                registration ->
+                    registration
+                        .name("hello")
+                        .inputSchema(schema)
+                        .handler(
+                            (context, params, invocation) ->
+                                new McpCallToolResult(
+                                    List.of(new McpTextContent("Hello, World!")))))
             .build()) {
       var notice = new JsonRpcNotification("example/notice", Map.of("value", List.of(1, "two")));
       require(notice.equals(kit.decode(kit.encode(notice))), "Protocol round trip");
@@ -167,11 +170,16 @@ public final class IsolatedConsumer {
             "properties",
             Map.of("timestamp", Map.of("type", "string", "format", "date-time")));
     try (var kit =
-        McpServerKit.builder("date-time-consumer", "1", McpEmptyContext.class)
+        mcpServerKit("date-time-consumer", "1", McpEmptyContext.class)
             .syncTool(
-                new McpTool("timestamp", schema),
-                (context, params, invocation) ->
-                    new McpCallToolResult(List.of(new McpTextContent("Timestamp accepted"))))
+                registration ->
+                    registration
+                        .name("timestamp")
+                        .inputSchema(schema)
+                        .handler(
+                            (context, params, invocation) ->
+                                new McpCallToolResult(
+                                    List.of(new McpTextContent("Timestamp accepted")))))
             .build()) {
       String prefix =
           "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2026-07-28\",\"io.modelcontextprotocol/clientCapabilities\":{}},\"name\":\"timestamp\",\"arguments\":{\"timestamp\":\"";

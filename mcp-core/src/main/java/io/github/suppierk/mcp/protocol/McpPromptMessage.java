@@ -1,6 +1,7 @@
 package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * Describes a message returned as part of a prompt. This is similar to {@code SamplingMessage}, but
@@ -32,6 +33,66 @@ public record McpPromptMessage(McpContentBlock content, McpRole role) {
     private McpRole role;
 
     private Builder() {}
+
+    /**
+     * Sets {@code content} using a {@link McpAudioContent} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder audioContent(Consumer<McpAudioContent.Builder> configure) {
+      var child = McpAudioContent.mcpAudioContent();
+      configure.accept(child);
+      return content(child.build());
+    }
+
+    /**
+     * Sets {@code content} using a {@link McpEmbeddedResource} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder embeddedResource(Consumer<McpEmbeddedResource.Builder> configure) {
+      var child = McpEmbeddedResource.mcpEmbeddedResource();
+      configure.accept(child);
+      return content(child.build());
+    }
+
+    /**
+     * Sets {@code content} using a {@link McpImageContent} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder imageContent(Consumer<McpImageContent.Builder> configure) {
+      var child = McpImageContent.mcpImageContent();
+      configure.accept(child);
+      return content(child.build());
+    }
+
+    /**
+     * Sets {@code content} using a {@link McpResourceLink} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder resourceLink(Consumer<McpResourceLink.Builder> configure) {
+      var child = McpResourceLink.mcpResourceLink();
+      configure.accept(child);
+      return content(child.build());
+    }
+
+    /**
+     * Sets {@code content} using a {@link McpTextContent} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder textContent(Consumer<McpTextContent.Builder> configure) {
+      var child = McpTextContent.mcpTextContent();
+      configure.accept(child);
+      return content(child.build());
+    }
 
     /**
      * Sets {@code content}.

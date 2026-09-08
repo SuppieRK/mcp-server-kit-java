@@ -70,4 +70,64 @@ public record HttpMcpRequest(String method, Map<String, List<String>> headers, b
   public byte[] body() {
     return body.clone();
   }
+
+  /**
+   * Creates a request builder with no headers and an empty body. The method is required.
+   *
+   * @return a new builder
+   */
+  public static Builder httpMcpRequest() {
+    return new Builder();
+  }
+
+  /** Builds {@link HttpMcpRequest} values. */
+  public static final class Builder {
+    private String method;
+    private Map<String, List<String>> headers = Map.of();
+    private byte[] body = new byte[0];
+
+    private Builder() {}
+
+    /**
+     * Sets the HTTP method.
+     *
+     * @param method the method name
+     * @return this builder
+     */
+    public Builder method(String method) {
+      this.method = method;
+      return this;
+    }
+
+    /**
+     * Sets the headers, normalized and copied when built.
+     *
+     * @param headers the header field values
+     * @return this builder
+     */
+    public Builder headers(Map<String, List<String>> headers) {
+      this.headers = headers;
+      return this;
+    }
+
+    /**
+     * Sets the request body, copied when built.
+     *
+     * @param body the request bytes
+     * @return this builder
+     */
+    public Builder body(byte[] body) {
+      this.body = body;
+      return this;
+    }
+
+    /**
+     * Builds an immutable request snapshot.
+     *
+     * @return the request
+     */
+    public HttpMcpRequest build() {
+      return new HttpMcpRequest(method, headers, body);
+    }
+  }
 }

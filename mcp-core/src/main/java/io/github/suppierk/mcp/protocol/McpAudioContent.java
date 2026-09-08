@@ -2,6 +2,7 @@ package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * Audio provided to or from an LLM.
@@ -56,6 +57,30 @@ public record McpAudioContent(
     private String mimeType;
 
     private Builder() {}
+
+    /**
+     * Sets {@code meta} using a {@link McpMetaObject} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder meta(Consumer<McpMetaObject.Builder> configure) {
+      var child = McpMetaObject.mcpMetaObject();
+      configure.accept(child);
+      return meta(child.build());
+    }
+
+    /**
+     * Sets {@code annotations} using a {@link McpAnnotations} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder annotations(Consumer<McpAnnotations.Builder> configure) {
+      var child = McpAnnotations.mcpAnnotations();
+      configure.accept(child);
+      return annotations(child.build());
+    }
 
     /**
      * Sets {@code meta}.

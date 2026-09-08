@@ -1,6 +1,7 @@
 package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * A request from the server to sample an LLM via the client. The client has full discretion over
@@ -43,6 +44,18 @@ public record McpCreateMessageRequest(McpCreateMessageRequestParams params)
     private McpCreateMessageRequestParams params;
 
     private Builder() {}
+
+    /**
+     * Sets {@code params} using a {@link McpCreateMessageRequestParams} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder params(Consumer<McpCreateMessageRequestParams.Builder> configure) {
+      var child = McpCreateMessageRequestParams.mcpCreateMessageRequestParams();
+      configure.accept(child);
+      return params(child.build());
+    }
 
     /**
      * Sets {@code params}.

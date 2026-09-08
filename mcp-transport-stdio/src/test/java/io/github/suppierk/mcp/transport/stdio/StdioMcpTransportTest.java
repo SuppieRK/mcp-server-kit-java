@@ -42,7 +42,7 @@ class StdioMcpTransportTest {
     var started = new CompletableFuture<McpHandlerContext>();
     var calls = new AtomicInteger();
     var server =
-        McpServerKit.builder("shared-kit", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("shared-kit", "1", McpEmptyContext.class)
             .asyncMethod(
                 "pending",
                 (applicationContext, request, handlerContext) -> {
@@ -138,7 +138,7 @@ class StdioMcpTransportTest {
     var pending = new CompletableFuture<JsonRpcResultResponse>();
     var calls = new AtomicInteger();
     var server =
-        McpServerKit.builder("duplicate", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("duplicate", "1", McpEmptyContext.class)
             .asyncMethod(
                 "pending",
                 (applicationContext, request, handlerContext) -> {
@@ -193,7 +193,7 @@ class StdioMcpTransportTest {
     var started = new CompletableFuture<McpHandlerContext>();
     var release = new CountDownLatch(1);
     var server =
-        McpServerKit.builder("sync-cancellation", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("sync-cancellation", "1", McpEmptyContext.class)
             .syncMethod(
                 "blocking",
                 (applicationContext, request, handlerContext) -> {
@@ -255,7 +255,7 @@ class StdioMcpTransportTest {
     var second = new CompletableFuture<JsonRpcResultResponse>();
     var firstContext = new AtomicReference<McpHandlerContext>();
     var server =
-        McpServerKit.builder("cancellation", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("cancellation", "1", McpEmptyContext.class)
             .asyncMethod(
                 "pending",
                 (applicationContext, request, handlerContext) -> {
@@ -324,7 +324,7 @@ class StdioMcpTransportTest {
     ByteArrayOutputStream output = new ByteArrayOutputStream();
     ByteArrayOutputStream diagnostics = new ByteArrayOutputStream();
     McpServerKit<McpEmptyContext> server =
-        McpServerKit.builder("stdio-test", "1", McpEmptyContext.class).build();
+        McpServerKit.mcpServerKit("stdio-test", "1", McpEmptyContext.class).build();
     StdioMcpTransport<McpEmptyContext> transport =
         new StdioMcpTransport<>(
             server,
@@ -354,7 +354,7 @@ class StdioMcpTransportTest {
             + "\n";
     var output = new ByteArrayOutputStream();
     var diagnostics = new ByteArrayOutputStream();
-    try (var server = McpServerKit.builder("stdio-test", "1", McpEmptyContext.class).build()) {
+    try (var server = McpServerKit.mcpServerKit("stdio-test", "1", McpEmptyContext.class).build()) {
       new StdioMcpTransport<>(
               server,
               McpEmptyContext.INSTANCE,
@@ -380,7 +380,7 @@ class StdioMcpTransportTest {
   void returnsParseErrorsAsNewlineDelimitedJson() throws Exception {
     ByteArrayOutputStream output = new ByteArrayOutputStream();
     McpServerKit<McpEmptyContext> server =
-        McpServerKit.builder("stdio-test", "1", McpEmptyContext.class).build();
+        McpServerKit.mcpServerKit("stdio-test", "1", McpEmptyContext.class).build();
     StdioMcpTransport<McpEmptyContext> transport =
         new StdioMcpTransport<>(
             server,
@@ -400,7 +400,7 @@ class StdioMcpTransportTest {
   @Test
   void createsTheSystemTransport() {
     McpServerKit<McpEmptyContext> server =
-        McpServerKit.builder("stdio-test", "1", McpEmptyContext.class).build();
+        McpServerKit.mcpServerKit("stdio-test", "1", McpEmptyContext.class).build();
 
     StdioMcpTransport<McpEmptyContext> transport =
         StdioMcpTransport.system(server, McpEmptyContext.INSTANCE);
@@ -420,7 +420,7 @@ class StdioMcpTransportTest {
         };
     StdioMcpTransport<McpEmptyContext> transport =
         new StdioMcpTransport<>(
-            McpServerKit.builder("stdio-test", "1", McpEmptyContext.class).build(),
+            McpServerKit.mcpServerKit("stdio-test", "1", McpEmptyContext.class).build(),
             McpEmptyContext.INSTANCE,
             new ByteArrayInputStream(
                 request(1, "server/discover", "").getBytes(StandardCharsets.UTF_8)),
@@ -439,7 +439,7 @@ class StdioMcpTransportTest {
     var queued = new ArrayDeque<Runnable>();
     var output = new ByteArrayOutputStream();
     var server =
-        McpServerKit.builder("queued", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("queued", "1", McpEmptyContext.class)
             .syncMethod(
                 "queued",
                 (applicationContext, request, handlerContext) -> {
@@ -474,7 +474,7 @@ class StdioMcpTransportTest {
     AtomicReference<ApplicationContext> second = new AtomicReference<>();
     var calls = new AtomicInteger();
     var serverKit =
-        McpServerKit.builder("stdio-context", "1", ApplicationContext.class)
+        McpServerKit.mcpServerKit("stdio-context", "1", ApplicationContext.class)
             .syncMethod(
                 "context",
                 (applicationContext, request, handlerContext) -> {

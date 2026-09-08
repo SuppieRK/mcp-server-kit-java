@@ -1,6 +1,7 @@
 package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * An out-of-band notification used to inform the receiver of a progress update for a long-running
@@ -51,6 +52,18 @@ public record McpProgressNotification(McpProgressNotificationParams params)
     private McpProgressNotificationParams params;
 
     private Builder() {}
+
+    /**
+     * Sets {@code params} using a {@link McpProgressNotificationParams} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder params(Consumer<McpProgressNotificationParams.Builder> configure) {
+      var child = McpProgressNotificationParams.mcpProgressNotificationParams();
+      configure.accept(child);
+      return params(child.build());
+    }
 
     /**
      * Sets {@code params}.

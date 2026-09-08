@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * A map of server-initiated requests that the client must fulfill. Keys are server-assigned
@@ -47,6 +48,52 @@ public record McpInputRequests(Map<String, McpInputRequest> values) {
     private Map<String, McpInputRequest> values;
 
     private Builder() {}
+
+    /**
+     * Adds {@code values} using a {@link McpCreateMessageRequest} builder.
+     *
+     * @param key the entry key
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder createMessageRequest(
+        String key, Consumer<McpCreateMessageRequest.Builder> configure) {
+      var child = McpCreateMessageRequest.mcpCreateMessageRequest();
+      configure.accept(child);
+      var entries = new LinkedHashMap<>(this.values == null ? Map.of() : this.values);
+      entries.put(Objects.requireNonNull(key, "key"), child.build());
+      return values(entries);
+    }
+
+    /**
+     * Adds {@code values} using a {@link McpElicitRequest} builder.
+     *
+     * @param key the entry key
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder elicitRequest(String key, Consumer<McpElicitRequest.Builder> configure) {
+      var child = McpElicitRequest.mcpElicitRequest();
+      configure.accept(child);
+      var entries = new LinkedHashMap<>(this.values == null ? Map.of() : this.values);
+      entries.put(Objects.requireNonNull(key, "key"), child.build());
+      return values(entries);
+    }
+
+    /**
+     * Adds {@code values} using a {@link McpListRootsRequest} builder.
+     *
+     * @param key the entry key
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder listRootsRequest(String key, Consumer<McpListRootsRequest.Builder> configure) {
+      var child = McpListRootsRequest.mcpListRootsRequest();
+      configure.accept(child);
+      var entries = new LinkedHashMap<>(this.values == null ? Map.of() : this.values);
+      entries.put(Objects.requireNonNull(key, "key"), child.build());
+      return values(entries);
+    }
 
     /**
      * Sets {@code values}.

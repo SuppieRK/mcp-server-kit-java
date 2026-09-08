@@ -1,6 +1,7 @@
 package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * Sent from the client to request a list of resource templates the server has.
@@ -63,6 +64,18 @@ public record McpListResourceTemplatesRequest(Object id, McpPaginatedRequestPara
     private McpPaginatedRequestParams params;
 
     private Builder() {}
+
+    /**
+     * Sets {@code params} using a {@link McpPaginatedRequestParams} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder params(Consumer<McpPaginatedRequestParams.Builder> configure) {
+      var child = McpPaginatedRequestParams.mcpPaginatedRequestParams();
+      configure.accept(child);
+      return params(child.build());
+    }
 
     /**
      * Sets {@code id}.

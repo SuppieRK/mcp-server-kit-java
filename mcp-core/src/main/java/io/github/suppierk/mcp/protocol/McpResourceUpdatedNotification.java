@@ -1,6 +1,7 @@
 package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * A notification from the server to the client, informing it that a resource has changed and may
@@ -53,6 +54,18 @@ public record McpResourceUpdatedNotification(McpResourceUpdatedNotificationParam
     private McpResourceUpdatedNotificationParams params;
 
     private Builder() {}
+
+    /**
+     * Sets {@code params} using a {@link McpResourceUpdatedNotificationParams} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder params(Consumer<McpResourceUpdatedNotificationParams.Builder> configure) {
+      var child = McpResourceUpdatedNotificationParams.mcpResourceUpdatedNotificationParams();
+      configure.accept(child);
+      return params(child.build());
+    }
 
     /**
      * Sets {@code params}.

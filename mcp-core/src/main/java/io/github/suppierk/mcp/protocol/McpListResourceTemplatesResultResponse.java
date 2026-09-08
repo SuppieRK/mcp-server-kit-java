@@ -1,6 +1,7 @@
 package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * A successful response for a {@link McpListResourceTemplatesRequest} ({@code
@@ -51,6 +52,18 @@ public record McpListResourceTemplatesResultResponse(
     private McpListResourceTemplatesResult result;
 
     private Builder() {}
+
+    /**
+     * Sets {@code result} using a {@link McpListResourceTemplatesResult} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder result(Consumer<McpListResourceTemplatesResult.Builder> configure) {
+      var child = McpListResourceTemplatesResult.mcpListResourceTemplatesResult();
+      configure.accept(child);
+      return result(child.build());
+    }
 
     /**
      * Sets {@code id}.

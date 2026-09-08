@@ -1,9 +1,11 @@
 package io.github.suppierk.mcp.protocol;
 
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * Describes the MCP implementation.
@@ -53,6 +55,20 @@ public record McpImplementation(
     private Optional<URI> websiteUrl = Optional.empty();
 
     private Builder() {}
+
+    /**
+     * Appends {@code icons} using a {@link McpIcon} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder icon(Consumer<McpIcon.Builder> configure) {
+      var child = McpIcon.mcpIcon();
+      configure.accept(child);
+      var values = new ArrayList<>(this.icons.orElseGet(List::of));
+      values.add(child.build());
+      return icons(values);
+    }
 
     /**
      * Sets {@code description}.

@@ -3,6 +3,7 @@ package io.github.suppierk.mcp.protocol;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * The result returned by the server for a {@link McpDiscoverRequest} ({@code server/discover})
@@ -67,6 +68,30 @@ public record McpDiscoverResult(
     private Long ttlMs;
 
     private Builder() {}
+
+    /**
+     * Sets {@code meta} using a {@link McpResultMetaObject} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder meta(Consumer<McpResultMetaObject.Builder> configure) {
+      var child = McpResultMetaObject.mcpResultMetaObject();
+      configure.accept(child);
+      return meta(child.build());
+    }
+
+    /**
+     * Sets {@code capabilities} using a {@link McpServerCapabilities} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder capabilities(Consumer<McpServerCapabilities.Builder> configure) {
+      var child = McpServerCapabilities.mcpServerCapabilities();
+      configure.accept(child);
+      return capabilities(child.build());
+    }
 
     /**
      * Sets {@code meta}.

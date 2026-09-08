@@ -1,5 +1,7 @@
 package io.github.suppierk.mcp.server;
 
+import static io.github.suppierk.mcp.protocol.McpJsonSchema.mcpJsonIntegerSchema;
+import static io.github.suppierk.mcp.protocol.McpJsonSchema.mcpJsonStringSchema;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -20,6 +22,7 @@ import io.github.suppierk.mcp.protocol.JsonRpcRequest;
 import io.github.suppierk.mcp.protocol.JsonRpcResultResponse;
 import io.github.suppierk.mcp.protocol.McpCallToolRequest;
 import io.github.suppierk.mcp.protocol.McpCallToolResult;
+import io.github.suppierk.mcp.protocol.McpCallToolResultResponse;
 import io.github.suppierk.mcp.protocol.McpCancelledNotificationParams;
 import io.github.suppierk.mcp.protocol.McpClientCapabilities;
 import io.github.suppierk.mcp.protocol.McpClientNotification;
@@ -49,12 +52,12 @@ import io.github.suppierk.mcp.protocol.McpSubscriptionsAcknowledgedNotification;
 import io.github.suppierk.mcp.protocol.McpSubscriptionsListenRequest;
 import io.github.suppierk.mcp.protocol.McpTextContent;
 import io.github.suppierk.mcp.protocol.McpTextResourceContents;
-import io.github.suppierk.mcp.protocol.McpTool;
 import io.github.suppierk.mcp.protocol.McpToolAnnotations;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -65,6 +68,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Flow;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -78,16 +82,217 @@ class McpServerKitTest {
   private static final JsonNodeFactory JSON = JsonNodeFactory.instance;
 
   @Test
+  void validatesComposedInputsWithoutInjectingSchemaDefaults() {
+    var calls = new AtomicInteger();
+    var server =
+        McpServerKit.mcpServerKit("schema", "1", McpEmptyContext.class)
+            .syncTool(
+                tool ->
+                    tool.name("find-user")
+                        .inputSchema(
+                            schema ->
+                                schema
+                                    .required("id", mcpJsonStringSchema(id -> id.minLength(1)))
+                                    .optional(
+                                        "limit",
+                                        mcpJsonIntegerSchema(
+                                            limit ->
+                                                limit.minimum(1).maximum(100).defaultValue(10))))
+                        .handler(
+                            (context, parameters, control) -> {
+                              calls.incrementAndGet();
+                              assertFalse(
+                                  parameters.arguments().orElseThrow().containsKey("limit"));
+                              return new McpCallToolResult(List.of(new McpTextContent("found")));
+                            }))
+            .build();
+    var valid = JSON.objectNode().put("name", "find-user");
+    valid.putObject("arguments").put("id", "alice");
+    success(server, handle(server, request(1, "tools/call", valid)));
+    for (ObjectNode arguments :
+        List.of(
+            JSON.objectNode().put("id", ""),
+            JSON.objectNode().put("id", "alice").put("limit", 0),
+            JSON.objectNode().put("id", "alice").put("unexpected", true))) {
+      var invalid = JSON.objectNode().put("name", "find-user");
+      invalid.set("arguments", arguments);
+      assertEquals(
+          McpInvalidParamsException.CODE,
+          error(handle(server, request(2, "tools/call", invalid))).code());
+    }
+    assertEquals(1, calls.get());
+  }
+
+  @Test
+  void validatesTheFinalToolNameAndKeepsFailedCallbacksOutOfTheRegistry() {
+    var builder = McpServerKit.mcpServerKit("atomic", "1", McpEmptyContext.class);
+    var failure = new IllegalStateException("callback failed");
+    assertSame(
+        failure,
+        assertThrows(
+            IllegalStateException.class,
+            () ->
+                builder.syncTool(
+                    tool -> {
+                      tool.name("hello")
+                          .handler((context, parameters, control) -> toolResult("discarded"));
+                      throw failure;
+                    })));
+    assertThrows(NullPointerException.class, () -> builder.syncTool(tool -> tool.name("hello")));
+    assertThrows(
+        NullPointerException.class,
+        () ->
+            builder.syncTool(
+                tool ->
+                    tool.handler((context, parameters, control) -> toolResult("missing name"))));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            builder.syncTool(
+                tool ->
+                    tool.name("hello")
+                        .inputSchema(Map.of("type", "string"))
+                        .handler((context, parameters, control) -> toolResult("invalid schema"))));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            builder.syncTool(
+                tool ->
+                    tool.name(" ")
+                        .handler((context, parameters, control) -> toolResult("blank name"))));
+    builder.syncTool(
+        tool ->
+            tool.name(" ")
+                .handler((context, parameters, control) -> toolResult("kept"))
+                .name("hello"));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            builder.asyncTool(
+                tool ->
+                    tool.name("hello")
+                        .handler(
+                            (context, parameters, control) ->
+                                CompletableFuture.completedFuture(toolResult("duplicate")))));
+    var server = builder.build();
+    var listed =
+        JsonTestValues.json(
+                success(server, handle(server, request(1, "tools/list", JSON.objectNode())))
+                    .result())
+            .path("tools");
+    assertEquals(1, listed.size());
+    assertEquals("hello", listed.path(0).path("name").textValue());
+    assertEquals(
+        "kept",
+        JsonTestValues.json(
+                success(
+                        server,
+                        handle(
+                            server,
+                            request(2, "tools/call", JSON.objectNode().put("name", "hello"))))
+                    .result())
+            .path("content")
+            .path(0)
+            .path("text")
+            .textValue());
+  }
+
+  @Test
+  void registersFunctionalToolWithClosedDefaultInputAndApplicationContext() {
+    var server =
+        McpServerKit.mcpServerKit("functional", "1", McpEmptyContext.class)
+            .syncTool(
+                tool ->
+                    tool.name("hello")
+                        .handler(
+                            (context, parameters, control) -> {
+                              assertSame(McpEmptyContext.INSTANCE, context);
+                              return new McpCallToolResult(
+                                  List.of(new McpTextContent("Hello, World!")));
+                            }))
+            .build();
+
+    assertEquals(
+        Map.of("type", "object", "additionalProperties", false),
+        server.toolInputSchema("hello").orElseThrow());
+    var result =
+        success(
+            server,
+            handle(server, request(42, "tools/call", JSON.objectNode().put("name", "hello"))));
+    assertEquals(
+        "Hello, World!",
+        JsonTestValues.json(result.result()).path("content").path(0).path("text").textValue());
+    var params = JSON.objectNode().put("name", "hello");
+    params.putObject("arguments").put("unexpected", true);
+    assertInstanceOf(
+        JsonRpcErrorResponse.class, handle(server, request(43, "tools/call", params)).get(0));
+  }
+
+  @Test
+  void snapshotsAsyncToolMetadataAfterTheCallbackReturns() {
+    var schema = new LinkedHashMap<String, Object>();
+    schema.put("type", "object");
+    schema.put("additionalProperties", false);
+    var retained =
+        new AtomicReference<
+            McpServerKit.ToolBuilder<
+                String, CompletableFuture<? extends McpCallToolResultResponse.Result>>>();
+    var callbacks = new AtomicInteger();
+    var builder = McpServerKit.mcpServerKit("functional", "1", String.class);
+    builder.asyncTool(
+        tool -> {
+          callbacks.incrementAndGet();
+          retained.set(tool);
+          tool.name("who")
+              .inputSchema(schema)
+              .outputSchema(Map.of("type", "object"))
+              .description("Current user")
+              .title("Who")
+              .meta(new McpMetaObject(Map.of("owner", "test")))
+              .annotations(McpToolAnnotations.mcpToolAnnotations().readOnlyHint(true).build())
+              .icons(List.of(new McpIcon(URI.create("https://example.com/icon.png"))))
+              .handler(
+                  (context, parameters, control) ->
+                      CompletableFuture.completedFuture(
+                          new McpCallToolResult(
+                              List.of(new McpTextContent(context)), Map.of("user", context))));
+        });
+    schema.put("type", "string");
+    retained.get().name("changed").description("changed");
+    var server = builder.build();
+    assertEquals(1, callbacks.get());
+    var listed =
+        JsonTestValues.json(
+                success(
+                        server,
+                        handle(server, "alice", request(1, "tools/list", JSON.objectNode())))
+                    .result())
+            .path("tools")
+            .path(0);
+    assertEquals("who", listed.path("name").textValue());
+    assertEquals("Current user", listed.path("description").textValue());
+    assertEquals("Who", listed.path("title").textValue());
+    assertEquals("test", listed.path("_meta").path("owner").textValue());
+    assertTrue(listed.path("annotations").path("readOnlyHint").booleanValue());
+    assertEquals(
+        "https://example.com/icon.png", listed.path("icons").path(0).path("src").textValue());
+    assertEquals("object", listed.path("inputSchema").path("type").textValue());
+    assertEquals("object", listed.path("outputSchema").path("type").textValue());
+    var called =
+        success(
+            server,
+            handle(
+                server, "alice", request(2, "tools/call", JSON.objectNode().put("name", "who"))));
+    assertEquals(
+        "alice",
+        JsonTestValues.json(called.result()).path("structuredContent").path("user").textValue());
+  }
+
+  @Test
   void preservesDomainDenialsForToolsWithAnOutputSchema() {
     var output = JSON.objectNode().put("type", "object");
     output.putArray("required").add("answer");
     output.putObject("properties").putObject("answer").put("type", "string");
-    var tool =
-        McpTool.mcpTool()
-            .name("answer")
-            .inputSchema(JsonTestValues.object(JSON.objectNode().put("type", "object")))
-            .outputSchema(JsonTestValues.object(output))
-            .build();
     var denial =
         McpCallToolResult.mcpCallToolResult()
             .resultType("complete")
@@ -95,8 +300,12 @@ class McpServerKitTest {
             .isError(true)
             .build();
     var server =
-        McpServerKit.builder("denial", "1", McpEmptyContext.class)
-            .syncTool(tool, (applicationContext, parameters, handlerContext) -> denial)
+        McpServerKit.mcpServerKit("denial", "1", McpEmptyContext.class)
+            .syncTool(
+                tool ->
+                    tool.name("answer")
+                        .outputSchema(JsonTestValues.object(output))
+                        .handler((applicationContext, parameters, handlerContext) -> denial))
             .build();
 
     var result =
@@ -112,7 +321,7 @@ class McpServerKitTest {
 
   @Test
   void acceptsAndPreservesRequestExtensionMetadata() throws Exception {
-    var server = McpServerKit.builder("metadata", "1", McpEmptyContext.class).build();
+    var server = McpServerKit.mcpServerKit("metadata", "1", McpEmptyContext.class).build();
     var parameters = JSON.objectNode();
     metadata(parameters).put("com.example/trace", "trace-42").put("progressToken", "progress-42");
     var original = request(42, "tools/list", parameters);
@@ -126,7 +335,7 @@ class McpServerKitTest {
 
   @Test
   void preservesRequestIdWhenToolParametersAreMalformed() {
-    var server = McpServerKit.builder("decode", "1", McpEmptyContext.class).build();
+    var server = McpServerKit.mcpServerKit("decode", "1", McpEmptyContext.class).build();
     var parameters = JSON.objectNode().put("name", "hello");
     parameters.putArray("arguments");
 
@@ -142,7 +351,7 @@ class McpServerKitTest {
 
   @Test
   void rejectsTrailingJsonAfterARequest() {
-    var server = McpServerKit.builder("decode", "1", McpEmptyContext.class).build();
+    var server = McpServerKit.mcpServerKit("decode", "1", McpEmptyContext.class).build();
     String input =
         new String(server.encode(request(42, "ping", JSON.objectNode())), StandardCharsets.UTF_8);
 
@@ -156,7 +365,7 @@ class McpServerKitTest {
 
   @Test
   void builderRequiresTheApplicationContextType() {
-    var builder = McpServerKit.builder("context", "1", String.class);
+    var builder = McpServerKit.mcpServerKit("context", "1", String.class);
 
     McpServerKit<String> serverKit = builder.build();
 
@@ -166,7 +375,7 @@ class McpServerKitTest {
             .anyMatch(field -> field.getType().equals(Class.class)));
     assertThrows(
         NullPointerException.class,
-        () -> McpServerKit.builder("context", "1", (Class<String>) null));
+        () -> McpServerKit.mcpServerKit("context", "1", (Class<String>) null));
   }
 
   @Test
@@ -183,15 +392,18 @@ class McpServerKitTest {
     var seenContext = new AtomicReference<ApplicationContext>();
     var seenHandlerContext = new AtomicReference<McpHandlerContext>();
     var serverKit =
-        McpServerKit.builder("context", "1", ApplicationContext.class)
+        McpServerKit.mcpServerKit("context", "1", ApplicationContext.class)
             .syncTool(
-                new McpTool(
-                    "context", JsonTestValues.object(JSON.objectNode().put("type", "object"))),
-                (applicationContext, parameters, handlerContext) -> {
-                  seenContext.set(applicationContext);
-                  seenHandlerContext.set(handlerContext);
-                  return toolResult(applicationContext.value());
-                })
+                registration ->
+                    registration
+                        .name("context")
+                        .inputSchema(JsonTestValues.object(JSON.objectNode().put("type", "object")))
+                        .handler(
+                            (applicationContext, parameters, handlerContext) -> {
+                              seenContext.set(applicationContext);
+                              seenHandlerContext.set(handlerContext);
+                              return toolResult(applicationContext.value());
+                            }))
             .build();
     var applicationContext = new ApplicationContext("exact");
     var call = JSON.objectNode().put("name", "context");
@@ -240,7 +452,7 @@ class McpServerKitTest {
     ExecutorService executor = Executors.newFixedThreadPool(2);
     try {
       var serverKit =
-          McpServerKit.builder("concurrent-context", "1", ApplicationContext.class)
+          McpServerKit.mcpServerKit("concurrent-context", "1", ApplicationContext.class)
               .asyncMethod(
                   "context",
                   (applicationContext, call, handlerContext) ->
@@ -284,7 +496,7 @@ class McpServerKitTest {
   @Test
   void decodesAndEncodesEveryMessageShape() {
     McpServerKit<McpEmptyContext> server =
-        McpServerKit.builder("codec", "1", McpEmptyContext.class).build();
+        McpServerKit.mcpServerKit("codec", "1", McpEmptyContext.class).build();
     JsonRpcRequest request = request(1, "server/discover", JSON.objectNode());
     JsonRpcNotification notification =
         new JsonRpcNotification("notifications/ignored", JsonTestValues.object(Map.of()));
@@ -331,7 +543,7 @@ class McpServerKitTest {
   @ValueSource(
       strings = {"2147483648", "-2147483649", "9223372036854775808", "-9223372036854775809"})
   void rejectsOutOfRangeErrorCodesWithoutThrowing(String code) {
-    try (var server = McpServerKit.builder("codec", "1", McpEmptyContext.class).build()) {
+    try (var server = McpServerKit.mcpServerKit("codec", "1", McpEmptyContext.class).build()) {
       String json =
           "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":" + code + ",\"message\":\"failed\"}}";
 
@@ -347,7 +559,7 @@ class McpServerKitTest {
   @ParameterizedTest
   @ValueSource(ints = {-2147483648, -32600, 0, 2147483647})
   void preservesSupportedErrorCodes(int code) {
-    try (var server = McpServerKit.builder("codec", "1", McpEmptyContext.class).build()) {
+    try (var server = McpServerKit.mcpServerKit("codec", "1", McpEmptyContext.class).build()) {
       var original = new JsonRpcErrorResponse(1, code, "failed", Optional.empty());
 
       assertEquals(original, server.decode(server.encode(original)));
@@ -357,7 +569,7 @@ class McpServerKitTest {
   @Test
   void rejectsInvalidMessageShapesAndUnexpectedInboundMessages() {
     McpServerKit<McpEmptyContext> server =
-        McpServerKit.builder("messages", "1", McpEmptyContext.class).build();
+        McpServerKit.mcpServerKit("messages", "1", McpEmptyContext.class).build();
     for (String json :
         List.of(
             "[]",
@@ -400,7 +612,7 @@ class McpServerKitTest {
   @Test
   void decodesAndAcceptsDefinedNotificationsWhileIgnoringUnknownOnes() {
     McpServerKit<McpEmptyContext> server =
-        McpServerKit.builder("notifications", "1", McpEmptyContext.class).build();
+        McpServerKit.mcpServerKit("notifications", "1", McpEmptyContext.class).build();
     var cancellation =
         new McpClientNotification(
             new McpCancelledNotificationParams(
@@ -423,7 +635,7 @@ class McpServerKitTest {
   void decodesBuiltInRequestsToExactTypes(
       String method, ObjectNode values, Class<? extends JsonRpcMessage> expectedType) {
     McpServerKit<McpEmptyContext> server =
-        McpServerKit.builder("typed", "1", McpEmptyContext.class).build();
+        McpServerKit.mcpServerKit("typed", "1", McpEmptyContext.class).build();
 
     assertEquals(expectedType, server.decode(server.encode(request(1, method, values))).getClass());
   }
@@ -431,7 +643,7 @@ class McpServerKitTest {
   @Test
   void discoversIdentityAndRejectsInvalidMetadata() {
     McpServerKit<McpEmptyContext> server =
-        McpServerKit.builder("server", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("server", "1", McpEmptyContext.class)
             .title("Title")
             .description("Description")
             .websiteUrl(URI.create("https://example.com"))
@@ -481,36 +693,28 @@ class McpServerKitTest {
     ObjectNode output = JSON.objectNode().put("type", "object");
     output.putArray("required").add("echo");
     output.putObject("properties").putObject("echo").put("type", "string");
-    McpTool tool =
-        new McpTool(
-            Optional.of(
-                new McpMetaObject(JsonTestValues.object(JSON.objectNode().put("owner", "test")))),
-            Optional.of(
-                new McpToolAnnotations(
-                    Optional.empty(),
-                    Optional.empty(),
-                    Optional.empty(),
-                    Optional.of(true),
-                    Optional.empty())),
-            Optional.of("Returns text."),
-            Optional.empty(),
-            JsonTestValues.object(input),
-            "echo",
-            JsonTestValues.optionalObject(Optional.of(output)),
-            Optional.of("Echo"));
     McpServerKit<McpEmptyContext> server =
-        McpServerKit.builder("tools", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("tools", "1", McpEmptyContext.class)
             .syncTool(
-                tool,
-                (applicationContext, request, handlerContext) -> {
-                  String value =
-                      JsonTestValues.json(request.arguments().orElseThrow())
-                          .path("value")
-                          .textValue();
-                  return new McpCallToolResult(
-                      List.of(new McpTextContent(value)),
-                      JsonTestValues.value(JSON.objectNode().put("echo", value)));
-                })
+                tool ->
+                    tool.name("echo")
+                        .inputSchema(JsonTestValues.object(input))
+                        .outputSchema(JsonTestValues.object(output))
+                        .meta(new McpMetaObject(Map.of("owner", "test")))
+                        .annotations(
+                            McpToolAnnotations.mcpToolAnnotations().readOnlyHint(true).build())
+                        .description("Returns text.")
+                        .title("Echo")
+                        .handler(
+                            (applicationContext, request, handlerContext) -> {
+                              String value =
+                                  JsonTestValues.json(request.arguments().orElseThrow())
+                                      .path("value")
+                                      .textValue();
+                              return new McpCallToolResult(
+                                  List.of(new McpTextContent(value)),
+                                  JsonTestValues.value(JSON.objectNode().put("echo", value)));
+                            }))
             .build();
 
     JsonRpcResultResponse listed =
@@ -538,11 +742,16 @@ class McpServerKitTest {
             .code());
 
     McpServerKit<McpEmptyContext> invalidOutput =
-        McpServerKit.builder("output", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("output", "1", McpEmptyContext.class)
             .syncTool(
-                tool,
-                (applicationContext, request, handlerContext) ->
-                    new McpCallToolResult(List.of(new McpTextContent("missing output"))))
+                tool ->
+                    tool.name("echo")
+                        .inputSchema(JsonTestValues.object(input))
+                        .outputSchema(JsonTestValues.object(output))
+                        .handler(
+                            (applicationContext, request, handlerContext) ->
+                                new McpCallToolResult(
+                                    List.of(new McpTextContent("missing output")))))
             .build();
     assertEquals(
         McpInternalException.CODE,
@@ -562,7 +771,7 @@ class McpServerKitTest {
             "hello",
             Optional.empty());
     McpServerKit<McpEmptyContext> server =
-        McpServerKit.builder("features", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("features", "1", McpEmptyContext.class)
             .syncResource(
                 resource,
                 (applicationContext, request, handlerContext) ->
@@ -668,7 +877,7 @@ class McpServerKitTest {
         Executors.newSingleThreadExecutor(runnable -> new Thread(runnable, "mcp-test-executor"));
     try {
       McpServerKit<McpEmptyContext> server =
-          McpServerKit.builder("custom", "1", McpEmptyContext.class)
+          McpServerKit.mcpServerKit("custom", "1", McpEmptyContext.class)
               .asyncMethod(
                   "example/run",
                   (applicationContext, request, handlerContext) ->
@@ -695,7 +904,7 @@ class McpServerKitTest {
     }
 
     McpServerKit<McpEmptyContext> thrown =
-        McpServerKit.builder("failure", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("failure", "1", McpEmptyContext.class)
             .syncMethod(
                 "failure",
                 (applicationContext, request, handlerContext) -> {
@@ -711,7 +920,7 @@ class McpServerKitTest {
   @Test
   void publishesSubscriptionsAndHonorsClosure() {
     McpServerKit<McpEmptyContext> server =
-        McpServerKit.builder("subscriptions", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("subscriptions", "1", McpEmptyContext.class)
             .syncResource(
                 new McpResource(URI.create("file:///live"), "live"),
                 (applicationContext, request, handlerContext) ->
@@ -755,21 +964,28 @@ class McpServerKitTest {
   void rejectsInvalidDeclarationsAndDuplicates() {
     ObjectNode schema = JSON.objectNode().put("type", "object");
     McpServerKit.Builder<McpEmptyContext> builder =
-        McpServerKit.builder("duplicates", "1", McpEmptyContext.class);
+        McpServerKit.mcpServerKit("duplicates", "1", McpEmptyContext.class);
     builder.syncTool(
-        new McpTool("tool", JsonTestValues.object(schema)),
-        (applicationContext, request, handlerContext) -> toolResult("x"));
+        registration ->
+            registration
+                .name("tool")
+                .inputSchema(JsonTestValues.object(schema))
+                .handler((applicationContext, request, handlerContext) -> toolResult("x")));
     assertThrows(
         IllegalArgumentException.class,
         () ->
             builder.syncTool(
-                new McpTool("tool", JsonTestValues.object(schema)),
-                (applicationContext, request, handlerContext) -> toolResult("x")));
+                registration ->
+                    registration
+                        .name("tool")
+                        .inputSchema(JsonTestValues.object(schema))
+                        .handler(
+                            (applicationContext, request, handlerContext) -> toolResult("x"))));
     for (String method : clientToServerMethods()) {
       assertThrows(
           IllegalArgumentException.class,
           () ->
-              McpServerKit.builder("x", "1", McpEmptyContext.class)
+              McpServerKit.mcpServerKit("x", "1", McpEmptyContext.class)
                   .syncMethod(
                       method,
                       (applicationContext, request, handlerContext) -> response(request, "x"))
@@ -777,7 +993,12 @@ class McpServerKitTest {
     }
     assertThrows(
         IllegalArgumentException.class,
-        () -> new McpTool("bad", JsonTestValues.object(JSON.objectNode())));
+        () ->
+            builder.syncTool(
+                tool ->
+                    tool.name("bad")
+                        .inputSchema(Map.of())
+                        .handler((context, parameters, control) -> toolResult("bad"))));
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -817,10 +1038,14 @@ class McpServerKitTest {
     assertThrows(
         IllegalArgumentException.class,
         () ->
-            McpServerKit.builder("schema", "1", McpEmptyContext.class)
+            McpServerKit.mcpServerKit("schema", "1", McpEmptyContext.class)
                 .syncTool(
-                    new McpTool("external", JsonTestValues.object(schema)),
-                    (applicationContext, request, handlerContext) -> toolResult("x"))
+                    registration ->
+                        registration
+                            .name("external")
+                            .inputSchema(JsonTestValues.object(schema))
+                            .handler(
+                                (applicationContext, request, handlerContext) -> toolResult("x")))
                 .build());
   }
 
@@ -846,7 +1071,7 @@ class McpServerKitTest {
   @Test
   void convertsAnExtensionResponseIdMismatchToACorrelatedInternalError() {
     McpServerKit<McpEmptyContext> server =
-        McpServerKit.builder("extension-id", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("extension-id", "1", McpEmptyContext.class)
             .syncMethod(
                 "extension/run",
                 (applicationContext, request, handlerContext) ->
@@ -863,7 +1088,7 @@ class McpServerKitTest {
     assertEquals("Internal error", response.message());
 
     McpServerKit<McpEmptyContext> customErrorServer =
-        McpServerKit.builder("custom-error", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("custom-error", "1", McpEmptyContext.class)
             .syncMethod(
                 "extension/error",
                 (applicationContext, call, handlerContext) ->
@@ -883,7 +1108,7 @@ class McpServerKitTest {
   void dispatchesCompletionAndDoesNotDispatchExtensionNotifications() {
     AtomicBoolean extensionInvoked = new AtomicBoolean();
     McpServerKit<McpEmptyContext> server =
-        McpServerKit.builder("remaining-methods", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("remaining-methods", "1", McpEmptyContext.class)
             .syncCompletion(
                 (applicationContext, parameters, handlerContext) -> {
                   ObjectNode value = JSON.objectNode();
@@ -923,7 +1148,7 @@ class McpServerKitTest {
   void convertsDeliberateProtocolExceptionsToCorrelatedErrors(
       String description, McpProtocolException exception) {
     McpServerKit<McpEmptyContext> server =
-        McpServerKit.builder("protocol-failure", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("protocol-failure", "1", McpEmptyContext.class)
             .syncMethod(
                 "extension/failure",
                 (applicationContext, request, handlerContext) -> {
@@ -1022,10 +1247,13 @@ class McpServerKitTest {
   }
 
   private static McpServerKit<McpEmptyContext> serverWithToolSchema(ObjectNode schema) {
-    return McpServerKit.builder("schema", "1", McpEmptyContext.class)
+    return McpServerKit.mcpServerKit("schema", "1", McpEmptyContext.class)
         .syncTool(
-            new McpTool("reference", JsonTestValues.object(schema)),
-            (applicationContext, request, handlerContext) -> toolResult("x"))
+            registration ->
+                registration
+                    .name("reference")
+                    .inputSchema(JsonTestValues.object(schema))
+                    .handler((applicationContext, request, handlerContext) -> toolResult("x")))
         .build();
   }
 

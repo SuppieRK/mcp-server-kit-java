@@ -1,6 +1,7 @@
 package io.github.suppierk.mcp.protocol;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -23,8 +24,10 @@ import java.lang.reflect.RecordComponent;
 import java.lang.reflect.Type;
 import java.lang.reflect.WildcardType;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -47,6 +50,52 @@ class McpProtocolModelTest {
       JsonNodeFactory.instance.objectNode().put("type", "object");
 
   @Test
+  void snapshotsToolDescriptionMapsForDiscoveryAndSampling() throws Exception {
+    var schema = new LinkedHashMap<String, Object>(Map.of("type", "object"));
+    var tool = new LinkedHashMap<String, Object>(Map.of("name", "hello", "inputSchema", schema));
+    List<Map<String, ?>> tools = new ArrayList<>(List.of(tool));
+    var discovery =
+        new McpListToolsResult(Optional.empty(), "public", Optional.empty(), "complete", tools, 0L);
+    var sampling =
+        McpCreateMessageRequestParams.mcpCreateMessageRequestParams()
+            .maxTokens(100L)
+            .messages(List.of())
+            .tools(tools)
+            .build();
+    schema.put("type", "string");
+    tool.put("name", "changed");
+    tools.clear();
+    var expected = Map.of("name", "hello", "inputSchema", Map.of("type", "object"));
+    assertEquals(List.of(expected), discovery.tools());
+    assertEquals(List.of(expected), sampling.tools().orElseThrow());
+    assertThrows(UnsupportedOperationException.class, () -> discovery.tools().get(0).clear());
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> ((Map<?, ?>) sampling.tools().orElseThrow().get(0).get("inputSchema")).clear());
+    try (var kit = McpServerKit.mcpServerKit("wire", "1", McpEmptyContext.class).build()) {
+      var json = JsonMapper.builder().build();
+      assertEquals(
+          json.valueToTree(expected),
+          json.readTree(kit.encode(new WireSample(discovery))).path("value").path("tools").path(0));
+      assertEquals(
+          json.valueToTree(expected),
+          json.readTree(kit.encode(new WireSample(sampling))).path("value").path("tools").path(0));
+      byte[] discoveryWire = kit.encode(new McpListToolsResultResponse(1L, discovery));
+      assertEquals(
+          json.readTree(discoveryWire), json.readTree(kit.encode(kit.decode(discoveryWire))));
+      var samplingRequest =
+          json.createObjectNode()
+              .put("jsonrpc", "2.0")
+              .put("id", 2)
+              .put("method", "sampling/createMessage");
+      samplingRequest.set(
+          "params", json.readTree(kit.encode(new WireSample(sampling))).path("value"));
+      byte[] samplingWire = samplingRequest.toString().getBytes(StandardCharsets.UTF_8);
+      assertEquals(samplingRequest, json.readTree(kit.encode(kit.decode(samplingWire))));
+    }
+  }
+
+  @Test
   void mapsEveryFrozenSchemaDefinitionAndDirectField() throws Exception {
     JsonNode definitions =
         JsonMapper.builder().build().readTree(resource("schema.json")).path("$defs");
@@ -64,7 +113,7 @@ class McpProtocolModelTest {
       if (schemaFields.isEmpty() || !type.isRecord()) {
         continue;
       }
-      try (var kit = McpServerKit.builder("wire-audit", "1", McpEmptyContext.class).build()) {
+      try (var kit = McpServerKit.mcpServerKit("wire-audit", "1", McpEmptyContext.class).build()) {
         JsonNode encoded =
             JsonMapper.builder()
                 .build()
@@ -85,7 +134,7 @@ class McpProtocolModelTest {
   @MethodSource("wireValues")
   void preservesWireScalarsAndFlattenedValues(Object value, String expected) throws IOException {
     var json = JsonMapper.builder().build();
-    try (var kit = McpServerKit.builder("wire-values", "1", McpEmptyContext.class).build()) {
+    try (var kit = McpServerKit.mcpServerKit("wire-values", "1", McpEmptyContext.class).build()) {
       assertEquals(
           json.readTree(expected), json.readTree(kit.encode(new WireSample(value))).path("value"));
     }
@@ -537,7 +586,18 @@ class McpProtocolModelTest {
 
   private static Object buildSample(Class<?> type, Map<Class<?>, Object> cache)
       throws ReflectiveOperationException {
-    Method factory = type.getDeclaredMethod(lowerCamel(type.getSimpleName()));
+    Method factory =
+        Arrays.stream(type.getDeclaredMethods())
+            .filter(
+                method ->
+                    Modifier.isPublic(method.getModifiers())
+                        && Modifier.isStatic(method.getModifiers()))
+            .filter(
+                method ->
+                    method.getParameterCount() == 0
+                        && method.getReturnType().getSimpleName().equals("Builder"))
+            .findFirst()
+            .orElseThrow();
     Object builder = factory.invoke(null);
     for (RecordComponent component : type.getRecordComponents()) {
       Method setter =
@@ -563,9 +623,6 @@ class McpProtocolModelTest {
       Map<Class<?>, Object> cache,
       Set<Class<?>> visiting)
       throws ReflectiveOperationException {
-    if (owner == McpTool.class && component.getName().equals("inputSchema")) {
-      return Map.of("type", "object");
-    }
     if (component.getType() == String.class) {
       String prefix = component.getName().replaceAll("([a-z])([A-Z])", "$1_$2").toUpperCase() + "_";
       for (Field field : owner.getFields()) {
@@ -584,10 +641,6 @@ class McpProtocolModelTest {
     return type instanceof ParameterizedType parameterizedType
         ? (Class<?>) parameterizedType.getRawType()
         : (Class<?>) type;
-  }
-
-  private static String lowerCamel(String value) {
-    return Character.toLowerCase(value.charAt(0)) + value.substring(1);
   }
 
   private static Properties properties(String name) throws IOException {

@@ -1,6 +1,7 @@
 package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * A request from the server to elicit additional information from the user via the client.
@@ -40,6 +41,30 @@ public record McpElicitRequest(McpElicitRequestParams params) implements McpInpu
     private McpElicitRequestParams params;
 
     private Builder() {}
+
+    /**
+     * Sets {@code params} using a {@link McpElicitRequestFormParams} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder elicitRequestFormParams(Consumer<McpElicitRequestFormParams.Builder> configure) {
+      var child = McpElicitRequestFormParams.mcpElicitRequestFormParams();
+      configure.accept(child);
+      return params(child.build());
+    }
+
+    /**
+     * Sets {@code params} using a {@link McpElicitRequestURLParams} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder elicitRequestURLParams(Consumer<McpElicitRequestURLParams.Builder> configure) {
+      var child = McpElicitRequestURLParams.mcpElicitRequestURLParams();
+      configure.accept(child);
+      return params(child.build());
+    }
 
     /**
      * Sets {@code params}.

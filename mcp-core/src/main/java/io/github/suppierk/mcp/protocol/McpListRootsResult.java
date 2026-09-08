@@ -1,6 +1,8 @@
 package io.github.suppierk.mcp.protocol;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * The result returned by the client for a {@link McpListRootsRequest} ({@code roots/list}) request.
@@ -30,6 +32,20 @@ public record McpListRootsResult(List<McpRoot> roots) implements McpInputRespons
     private List<McpRoot> roots;
 
     private Builder() {}
+
+    /**
+     * Appends {@code roots} using a {@link McpRoot} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder root(Consumer<McpRoot.Builder> configure) {
+      var child = McpRoot.mcpRoot();
+      configure.accept(child);
+      var values = new ArrayList<>(this.roots == null ? List.of() : this.roots);
+      values.add(child.build());
+      return roots(values);
+    }
 
     /**
      * Sets {@code roots}.

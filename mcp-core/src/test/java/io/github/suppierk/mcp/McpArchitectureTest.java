@@ -159,6 +159,9 @@ class McpArchitectureTest {
     assertThrows(
         ClassNotFoundException.class,
         () -> Class.forName("io.github.suppierk.mcp.protocol.McpErrorCodes"));
+    assertThrows(
+        ClassNotFoundException.class,
+        () -> Class.forName("io.github.suppierk.mcp.protocol.McpTool"));
   }
 
   @Test
@@ -188,6 +191,8 @@ class McpArchitectureTest {
         .areNotEnums()
         .and()
         .doNotHaveSimpleName("McpProtocol")
+        .and()
+        .doNotHaveSimpleName("McpJsonSchema")
         .should()
         .beRecords()
         .check(CORE_CLASSES);
@@ -312,6 +317,11 @@ class McpArchitectureTest {
               "io.github.suppierk.mcp",
               ScanOption.recursive(),
               ScanOption.except(McpServerKit.class),
+              // Static schema/copy helpers have no instances or value equality contract.
+              ScanOption.except(
+                  type ->
+                      type.getName().equals("io.github.suppierk.mcp.protocol.McpJsonSchema")
+                          || type.getName().equals("io.github.suppierk.mcp.internal.JsonValues")),
               ScanOption.except(
                   type ->
                       type.getName().equals(SCHEMA_VALIDATOR)
@@ -385,7 +395,7 @@ class McpArchitectureTest {
   }
 
   private static boolean isBuilder(Class<?> type) {
-    return type.getName().endsWith("$Builder");
+    return type.getSimpleName().endsWith("Builder") && type.getEnclosingClass() != null;
   }
 
   private static ArchCondition<JavaClass> useStandardBuilder() {
@@ -449,7 +459,7 @@ class McpArchitectureTest {
       violations.add("Builder must have one private no-argument constructor");
     }
 
-    String factoryName = lowerCamel(recordType.getSimpleName());
+    String factoryName = FluentBuilderArchitectureTest.factoryName(recordType);
     Method factory = declaredMethod(recordType, factoryName);
     if (factory == null
         || !Modifier.isPublic(factory.getModifiers())
@@ -548,10 +558,6 @@ class McpArchitectureTest {
       violations.add("Builder field " + field.getName() + " cannot be inspected");
       return null;
     }
-  }
-
-  private static String lowerCamel(String value) {
-    return Character.toLowerCase(value.charAt(0)) + value.substring(1);
   }
 
   private record MissingBuilderRecord(String value) {}

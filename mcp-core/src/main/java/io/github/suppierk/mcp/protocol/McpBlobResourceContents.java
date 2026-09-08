@@ -3,6 +3,7 @@ package io.github.suppierk.mcp.protocol;
 import java.net.URI;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * Binary resource contents encoded as Base64 text.
@@ -41,6 +42,18 @@ public record McpBlobResourceContents(
     private URI uri;
 
     private Builder() {}
+
+    /**
+     * Sets {@code meta} using a {@link McpMetaObject} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder meta(Consumer<McpMetaObject.Builder> configure) {
+      var child = McpMetaObject.mcpMetaObject();
+      configure.accept(child);
+      return meta(child.build());
+    }
 
     /**
      * Sets {@code meta}.

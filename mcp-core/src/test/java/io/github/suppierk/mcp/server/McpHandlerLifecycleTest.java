@@ -46,7 +46,7 @@ class McpHandlerLifecycleTest {
     var calls = new AtomicInteger();
     var invocationThread = new AtomicReference<Thread>();
     var kit =
-        McpServerKit.builder("lifecycle", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("lifecycle", "1", McpEmptyContext.class)
             .syncMethod(
                 "example/run",
                 (applicationContext, request, handlerContext) -> {
@@ -80,7 +80,7 @@ class McpHandlerLifecycleTest {
     var applicationFuture = new CompletableFuture<JsonRpcResultResponse>();
     var invocationThread = new AtomicReference<Thread>();
     var kit =
-        McpServerKit.builder("lifecycle", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("lifecycle", "1", McpEmptyContext.class)
             .asyncMethod(
                 "example/run",
                 (applicationContext, request, handlerContext) -> {
@@ -159,7 +159,7 @@ class McpHandlerLifecycleTest {
           }
         };
     var kit =
-        McpServerKit.builder("lifecycle", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("lifecycle", "1", McpEmptyContext.class)
             .asyncMethod(
                 "example/run",
                 (applicationContext, request, context) -> {
@@ -195,7 +195,7 @@ class McpHandlerLifecycleTest {
     var cancelled = new CompletableFuture<JsonRpcResultResponse>();
     cancelled.cancel(false);
     var kit =
-        McpServerKit.builder("lifecycle", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("lifecycle", "1", McpEmptyContext.class)
             .asyncMethod("null/future", (applicationContext, request, context) -> null)
             .asyncMethod(
                 "null/result",
@@ -211,7 +211,7 @@ class McpHandlerLifecycleTest {
   @Test
   void handlerContextPublishesAllProgressFormsBeforeTheTerminalResponse() {
     var kit =
-        McpServerKit.builder("lifecycle", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("lifecycle", "1", McpEmptyContext.class)
             .syncMethod(
                 "progress",
                 (applicationContext, request, context) -> {
@@ -250,7 +250,7 @@ class McpHandlerLifecycleTest {
   @Test
   void progressRetainsOnlyTheLatestPendingValueWithoutOvertakingTerminalOrder() {
     var kit =
-        McpServerKit.builder("lifecycle", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("lifecycle", "1", McpEmptyContext.class)
             .syncMethod(
                 "progress",
                 (applicationContext, request, context) -> {
@@ -284,7 +284,7 @@ class McpHandlerLifecycleTest {
   @Test
   void completedResponseSurvivesLaterDownstreamCancellationUntilDemandArrives() {
     var kit =
-        McpServerKit.builder("lifecycle", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("lifecycle", "1", McpEmptyContext.class)
             .syncMethod(
                 "progress",
                 (applicationContext, request, context) -> {
@@ -314,7 +314,7 @@ class McpHandlerLifecycleTest {
     var applicationFuture = new CompletableFuture<JsonRpcResultResponse>();
     var handlerContext = new AtomicReference<McpHandlerContext>();
     var kit =
-        McpServerKit.builder("lifecycle", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("lifecycle", "1", McpEmptyContext.class)
             .asyncMethod(
                 "context",
                 (applicationContext, request, context) -> {
@@ -352,7 +352,7 @@ class McpHandlerLifecycleTest {
     var directError = new AssertionError("direct");
     var wrappedError = new AssertionError("wrapped");
     var kit =
-        McpServerKit.builder("lifecycle", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("lifecycle", "1", McpEmptyContext.class)
             .syncMethod(
                 "protocol",
                 (applicationContext, request, context) -> {
@@ -397,7 +397,7 @@ class McpHandlerLifecycleTest {
     var handlerContext = new AtomicReference<McpHandlerContext>();
     var applicationFuture = new CompletableFuture<JsonRpcResultResponse>();
     var kit =
-        McpServerKit.builder("lifecycle", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("lifecycle", "1", McpEmptyContext.class)
             .asyncMethod(
                 "slow/construction",
                 (applicationContext, request, context) -> {
@@ -435,7 +435,7 @@ class McpHandlerLifecycleTest {
       var applicationFuture = new CompletableFuture<JsonRpcResultResponse>();
       var handlerContext = new AtomicReference<McpHandlerContext>();
       var kit =
-          McpServerKit.builder("lifecycle", "1", McpEmptyContext.class)
+          McpServerKit.mcpServerKit("lifecycle", "1", McpEmptyContext.class)
               .asyncMethod(
                   "race",
                   (applicationContext, request, context) -> {
@@ -506,7 +506,7 @@ class McpHandlerLifecycleTest {
             "logged/method",
             JsonTestValues.object(params));
     var kit =
-        McpServerKit.builder("lifecycle", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("lifecycle", "1", McpEmptyContext.class)
             .syncMethod(
                 "logged/method",
                 (applicationContext, suppliedRequest, context) -> {
@@ -544,7 +544,7 @@ class McpHandlerLifecycleTest {
     var handlerContext = new AtomicReference<McpHandlerContext>();
     var calls = new AtomicInteger();
     var kit =
-        McpServerKit.builder("lifecycle", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("lifecycle", "1", McpEmptyContext.class)
             .asyncMethod(
                 "close",
                 (applicationContext, request, context) -> {
@@ -576,7 +576,7 @@ class McpHandlerLifecycleTest {
     var applicationFuture = new CompletableFuture<JsonRpcResultResponse>();
     var handlerContext = new AtomicReference<McpHandlerContext>();
     var kit =
-        McpServerKit.builder("lifecycle", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("lifecycle", "1", McpEmptyContext.class)
             .asyncMethod(
                 "concurrent/progress",
                 (applicationContext, request, context) -> {
@@ -625,7 +625,7 @@ class McpHandlerLifecycleTest {
   void cancellationDiscardsPendingProgressAndTheLaterResult() {
     var applicationFuture = new CompletableFuture<JsonRpcResultResponse>();
     var kit =
-        McpServerKit.builder("lifecycle", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("lifecycle", "1", McpEmptyContext.class)
             .asyncMethod(
                 "cancel/progress",
                 (applicationContext, request, context) -> {

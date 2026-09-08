@@ -1,6 +1,7 @@
 package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * A successful response from the server for a {@link McpListPromptsRequest} ({@code prompts/list})
@@ -51,6 +52,18 @@ public record McpListPromptsResultResponse(Object id, McpListPromptsResult resul
     private McpListPromptsResult result;
 
     private Builder() {}
+
+    /**
+     * Sets {@code result} using a {@link McpListPromptsResult} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder result(Consumer<McpListPromptsResult.Builder> configure) {
+      var child = McpListPromptsResult.mcpListPromptsResult();
+      configure.accept(child);
+      return result(child.build());
+    }
 
     /**
      * Sets {@code id}.

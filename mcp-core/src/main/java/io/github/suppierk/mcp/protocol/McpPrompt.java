@@ -1,8 +1,10 @@
 package io.github.suppierk.mcp.protocol;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * A prompt or prompt template that the server offers.
@@ -69,6 +71,46 @@ public record McpPrompt(
     private Optional<String> title = Optional.empty();
 
     private Builder() {}
+
+    /**
+     * Sets {@code meta} using a {@link McpMetaObject} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder meta(Consumer<McpMetaObject.Builder> configure) {
+      var child = McpMetaObject.mcpMetaObject();
+      configure.accept(child);
+      return meta(child.build());
+    }
+
+    /**
+     * Appends {@code arguments} using a {@link McpPromptArgument} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder promptArgument(Consumer<McpPromptArgument.Builder> configure) {
+      var child = McpPromptArgument.mcpPromptArgument();
+      configure.accept(child);
+      var values = new ArrayList<>(this.arguments.orElseGet(List::of));
+      values.add(child.build());
+      return arguments(values);
+    }
+
+    /**
+     * Appends {@code icons} using a {@link McpIcon} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder icon(Consumer<McpIcon.Builder> configure) {
+      var child = McpIcon.mcpIcon();
+      configure.accept(child);
+      var values = new ArrayList<>(this.icons.orElseGet(List::of));
+      values.add(child.build());
+      return icons(values);
+    }
 
     /**
      * Sets {@code meta}.

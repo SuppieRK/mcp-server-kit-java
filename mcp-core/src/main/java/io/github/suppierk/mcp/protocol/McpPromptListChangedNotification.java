@@ -2,6 +2,7 @@ package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * An optional notification from the server to the client, informing it that the list of prompts it
@@ -54,6 +55,18 @@ public record McpPromptListChangedNotification(Optional<McpNotificationParams> p
     private Optional<McpNotificationParams> params = Optional.empty();
 
     private Builder() {}
+
+    /**
+     * Sets {@code params} using a {@link McpNotificationParams} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder params(Consumer<McpNotificationParams.Builder> configure) {
+      var child = McpNotificationParams.mcpNotificationParams();
+      configure.accept(child);
+      return params(child.build());
+    }
 
     /**
      * Sets {@code params}.

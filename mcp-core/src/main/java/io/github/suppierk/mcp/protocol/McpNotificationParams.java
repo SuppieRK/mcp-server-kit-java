@@ -2,6 +2,7 @@ package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * Common params for any notification.
@@ -29,6 +30,18 @@ public record McpNotificationParams(Optional<McpNotificationMetaObject> meta) {
     private Optional<McpNotificationMetaObject> meta = Optional.empty();
 
     private Builder() {}
+
+    /**
+     * Sets {@code meta} using a {@link McpNotificationMetaObject} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder meta(Consumer<McpNotificationMetaObject.Builder> configure) {
+      var child = McpNotificationMetaObject.mcpNotificationMetaObject();
+      configure.accept(child);
+      return meta(child.build());
+    }
 
     /**
      * Sets {@code meta}.

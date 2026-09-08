@@ -3,6 +3,7 @@ package io.github.suppierk.mcp.protocol;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * Parameters for a {@code completion/complete} request.
@@ -71,6 +72,18 @@ public record McpCompleteRequestParams(
     private Object ref;
 
     private Builder() {}
+
+    /**
+     * Sets {@code meta} using a {@link McpRequestMetaObject} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder meta(Consumer<McpRequestMetaObject.Builder> configure) {
+      var child = McpRequestMetaObject.mcpRequestMetaObject();
+      configure.accept(child);
+      return meta(child.build());
+    }
 
     /**
      * Sets {@code meta}.

@@ -1,6 +1,7 @@
 package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * JSONRPCNotification of a log message passed from server to client. The client opts in by setting
@@ -51,6 +52,18 @@ public record McpLoggingMessageNotification(McpLoggingMessageNotificationParams 
     private McpLoggingMessageNotificationParams params;
 
     private Builder() {}
+
+    /**
+     * Sets {@code params} using a {@link McpLoggingMessageNotificationParams} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder params(Consumer<McpLoggingMessageNotificationParams.Builder> configure) {
+      var child = McpLoggingMessageNotificationParams.mcpLoggingMessageNotificationParams();
+      configure.accept(child);
+      return params(child.build());
+    }
 
     /**
      * Sets {@code params}.

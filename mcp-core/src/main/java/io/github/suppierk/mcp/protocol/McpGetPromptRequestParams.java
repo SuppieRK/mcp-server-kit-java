@@ -3,6 +3,7 @@ package io.github.suppierk.mcp.protocol;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * Parameters for a {@code prompts/get} request.
@@ -57,6 +58,30 @@ public record McpGetPromptRequestParams(
     private Optional<String> requestState = Optional.empty();
 
     private Builder() {}
+
+    /**
+     * Sets {@code meta} using a {@link McpRequestMetaObject} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder meta(Consumer<McpRequestMetaObject.Builder> configure) {
+      var child = McpRequestMetaObject.mcpRequestMetaObject();
+      configure.accept(child);
+      return meta(child.build());
+    }
+
+    /**
+     * Sets {@code inputResponses} using a {@link McpInputResponses} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder inputResponses(Consumer<McpInputResponses.Builder> configure) {
+      var child = McpInputResponses.mcpInputResponses();
+      configure.accept(child);
+      return inputResponses(child.build());
+    }
 
     /**
      * Sets {@code meta}.

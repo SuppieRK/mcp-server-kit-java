@@ -1,6 +1,7 @@
 package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * A successful response from the server for a {@link McpGetPromptRequest} ({@code prompts/get})
@@ -53,6 +54,30 @@ public record McpGetPromptResultResponse(Object id, Result result) implements Js
     private Result result;
 
     private Builder() {}
+
+    /**
+     * Sets {@code result} using a {@link McpGetPromptResult} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder getPromptResult(Consumer<McpGetPromptResult.Builder> configure) {
+      var child = McpGetPromptResult.mcpGetPromptResult();
+      configure.accept(child);
+      return result(child.build());
+    }
+
+    /**
+     * Sets {@code result} using a {@link McpInputRequiredResult} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder inputRequiredResult(Consumer<McpInputRequiredResult.Builder> configure) {
+      var child = McpInputRequiredResult.mcpInputRequiredResult();
+      configure.accept(child);
+      return result(child.build());
+    }
 
     /**
      * Sets {@code id}.

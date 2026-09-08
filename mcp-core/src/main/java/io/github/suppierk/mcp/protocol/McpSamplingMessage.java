@@ -2,6 +2,7 @@ package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * Describes a message issued to or received from an LLM API.
@@ -44,6 +45,18 @@ public record McpSamplingMessage(Optional<McpMetaObject> meta, Object content, M
     private McpRole role;
 
     private Builder() {}
+
+    /**
+     * Sets {@code meta} using a {@link McpMetaObject} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder meta(Consumer<McpMetaObject.Builder> configure) {
+      var child = McpMetaObject.mcpMetaObject();
+      configure.accept(child);
+      return meta(child.build());
+    }
 
     /**
      * Sets {@code meta}.

@@ -1,6 +1,7 @@
 package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * Sent from the client to the server, to read a specific resource URI.
@@ -63,6 +64,18 @@ public record McpReadResourceRequest(Object id, McpReadResourceRequestParams par
     private McpReadResourceRequestParams params;
 
     private Builder() {}
+
+    /**
+     * Sets {@code params} using a {@link McpReadResourceRequestParams} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder params(Consumer<McpReadResourceRequestParams.Builder> configure) {
+      var child = McpReadResourceRequestParams.mcpReadResourceRequestParams();
+      configure.accept(child);
+      return params(child.build());
+    }
 
     /**
      * Sets {@code id}.

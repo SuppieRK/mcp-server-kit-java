@@ -2,6 +2,7 @@ package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * An InputRequiredResult sent by the server to indicate that additional input is needed before the
@@ -52,6 +53,30 @@ public record McpInputRequiredResult(
     private String resultType;
 
     private Builder() {}
+
+    /**
+     * Sets {@code meta} using a {@link McpResultMetaObject} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder meta(Consumer<McpResultMetaObject.Builder> configure) {
+      var child = McpResultMetaObject.mcpResultMetaObject();
+      configure.accept(child);
+      return meta(child.build());
+    }
+
+    /**
+     * Sets {@code inputRequests} using a {@link McpInputRequests} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder inputRequests(Consumer<McpInputRequests.Builder> configure) {
+      var child = McpInputRequests.mcpInputRequests();
+      configure.accept(child);
+      return inputRequests(child.build());
+    }
 
     /**
      * Sets {@code meta}.

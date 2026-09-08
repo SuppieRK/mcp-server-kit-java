@@ -4,7 +4,6 @@ import io.github.suppierk.mcp.protocol.JsonRpcErrorResponse;
 import io.github.suppierk.mcp.protocol.JsonRpcMessage;
 import io.github.suppierk.mcp.protocol.McpCallToolResult;
 import io.github.suppierk.mcp.protocol.McpTextContent;
-import io.github.suppierk.mcp.protocol.McpTool;
 import io.github.suppierk.mcp.server.McpEmptyContext;
 import io.github.suppierk.mcp.server.McpServerKit;
 import java.nio.charset.StandardCharsets;
@@ -66,16 +65,26 @@ public class ProtocolBenchmark {
             .content(List.of(new McpTextContent("Hello, World!")))
             .build();
     kit =
-        McpServerKit.builder("benchmark", "1", McpEmptyContext.class)
-            .syncTool(new McpTool("hello", schema), (context, params, invocation) -> result)
+        McpServerKit.mcpServerKit("benchmark", "1", McpEmptyContext.class)
             .syncTool(
-                McpTool.mcpTool().name("nested").inputSchema(nested).outputSchema(nested).build(),
-                (context, params, invocation) ->
-                    McpCallToolResult.mcpCallToolResult()
-                        .resultType("complete")
-                        .content(List.of(new McpTextContent("items")))
-                        .structuredContent(params.arguments().orElseThrow())
-                        .build())
+                registration ->
+                    registration
+                        .name("hello")
+                        .inputSchema(schema)
+                        .handler((context, params, invocation) -> result))
+            .syncTool(
+                registration ->
+                    registration
+                        .name("nested")
+                        .inputSchema(nested)
+                        .outputSchema(nested)
+                        .handler(
+                            (context, params, invocation) ->
+                                McpCallToolResult.mcpCallToolResult()
+                                    .resultType("complete")
+                                    .content(List.of(new McpTextContent("items")))
+                                    .structuredContent(params.arguments().orElseThrow())
+                                    .build()))
             .build();
     String json =
         switch (scenario) {

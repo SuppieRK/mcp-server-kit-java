@@ -14,25 +14,56 @@ handlers to transports. The host application owns its server, authentication, an
 This example registers one synchronous tool with an explicit application-context type.
 
 ```java
+import static io.github.suppierk.mcp.server.McpServerKit.mcpServerKit;
+
 record RequestContext(String userName) {}
 
-var inputSchema = Map.of("type", "object", "additionalProperties", false);
-
 McpServerKit<RequestContext> serverKit =
-    McpServerKit.builder("example", "1.0.0", RequestContext.class)
+    mcpServerKit("example", "1.0.0", RequestContext.class)
         .syncTool(
-            new McpTool("hello", inputSchema),
-            (applicationContext, parameters, handlerContext) ->
-                new McpCallToolResult(
-                    List.of(
-                        new McpTextContent(
-                            "Hello, " + applicationContext.userName() + "!"))))
+            tool -> tool
+                .name("hello")
+                .handler((applicationContext, parameters, handlerContext) ->
+                    new McpCallToolResult(List.of(new McpTextContent(
+                        "Hello, " + applicationContext.userName() + "!")))))
         .build();
 ```
 
 The host passes one `RequestContext` to `McpServerKit.handle` for each invocation. Use
 `McpEmptyContext` when a host has no invocation data. Use `asyncTool` when a handler returns a
 `CompletableFuture`.
+
+No input schema means a closed empty object: the tool accepts no arguments. For tools with arguments,
+compose a schema in the registration callback:
+
+```java
+import static io.github.suppierk.mcp.protocol.McpJsonSchema.mcpJsonIntegerSchema;
+import static io.github.suppierk.mcp.protocol.McpJsonSchema.mcpJsonObjectSchema;
+import static io.github.suppierk.mcp.protocol.McpJsonSchema.mcpJsonStringSchema;
+import static io.github.suppierk.mcp.server.McpServerKit.mcpServerKit;
+
+var serverKit = mcpServerKit("example", "1.0.0", RequestContext.class)
+    .syncTool(tool -> tool
+        .name("find-user")
+        .inputSchema(schema -> schema
+            .required("user", mcpJsonObjectSchema(user -> user
+                .required("id", mcpJsonStringSchema(id -> id.minLength(1)))))
+            .optional("limit", mcpJsonIntegerSchema(limit -> limit.minimum(1).maximum(100))))
+        .handler((context, parameters, handlerContext) ->
+            new McpCallToolResult(List.of(new McpTextContent(
+                "Requested user: " + parameters.arguments().orElseThrow().get("user"))))))
+    .build();
+```
+
+Schema factories return immutable maps and need no `build()` call. Every object helper is closed by
+default; opt in with `additionalProperties(true)` or an additional-property schema. `defaultValue`
+only documents a default—it never fills in missing arguments. Raw `inputSchema(Map<String, ?>)` and
+`outputSchema(Map<String, ?>)` remain available for complete hand-written or externally generated
+schemas. Use `keyword(name, value)` for unsupported schema keywords; typed keywords use their setters.
+
+Tool callbacks run immediately and once. The kit snapshots the declaration after the callback returns;
+later builder or map mutations cannot change the registration. Tool descriptions in discovery and
+sampling use immutable maps. Builder factory names include their owning class names for static imports.
 
 Use `StdioMcpTransport` for a process transport. Use `StreamableHttpMcpTransport` with a framework
 adapter or a framework-native endpoint for HTTP.

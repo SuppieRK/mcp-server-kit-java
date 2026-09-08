@@ -1,6 +1,7 @@
 package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * A successful response for a {@link McpSubscriptionsListenRequest} ({@code subscriptions/listen})
@@ -51,6 +52,18 @@ public record McpSubscriptionsListenResultResponse(Object id, McpSubscriptionsLi
     private McpSubscriptionsListenResult result;
 
     private Builder() {}
+
+    /**
+     * Sets {@code result} using a {@link McpSubscriptionsListenResult} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder result(Consumer<McpSubscriptionsListenResult.Builder> configure) {
+      var child = McpSubscriptionsListenResult.mcpSubscriptionsListenResult();
+      configure.accept(child);
+      return result(child.build());
+    }
 
     /**
      * Sets {@code id}.

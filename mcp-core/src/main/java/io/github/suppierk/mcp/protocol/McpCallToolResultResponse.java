@@ -1,6 +1,7 @@
 package io.github.suppierk.mcp.protocol;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * A successful response from the server for a {@link McpCallToolRequest} ({@code tools/call})
@@ -53,6 +54,30 @@ public record McpCallToolResultResponse(Object id, Result result) implements Jso
     private Result result;
 
     private Builder() {}
+
+    /**
+     * Sets {@code result} using a {@link McpCallToolResult} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder callToolResult(Consumer<McpCallToolResult.Builder> configure) {
+      var child = McpCallToolResult.mcpCallToolResult();
+      configure.accept(child);
+      return result(child.build());
+    }
+
+    /**
+     * Sets {@code result} using a {@link McpInputRequiredResult} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder inputRequiredResult(Consumer<McpInputRequiredResult.Builder> configure) {
+      var child = McpInputRequiredResult.mcpInputRequiredResult();
+      configure.accept(child);
+      return result(child.build());
+    }
 
     /**
      * Sets {@code id}.

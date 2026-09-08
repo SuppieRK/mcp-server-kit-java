@@ -1,8 +1,10 @@
 package io.github.suppierk.mcp.protocol;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * The result returned by the server for a {@link McpReadResourceRequest} ({@code resources/read})
@@ -64,6 +66,46 @@ public record McpReadResourceResult(
     private Long ttlMs;
 
     private Builder() {}
+
+    /**
+     * Sets {@code meta} using a {@link McpResultMetaObject} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder meta(Consumer<McpResultMetaObject.Builder> configure) {
+      var child = McpResultMetaObject.mcpResultMetaObject();
+      configure.accept(child);
+      return meta(child.build());
+    }
+
+    /**
+     * Appends {@code contents} using a {@link McpBlobResourceContents} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder blobResourceContents(Consumer<McpBlobResourceContents.Builder> configure) {
+      var child = McpBlobResourceContents.mcpBlobResourceContents();
+      configure.accept(child);
+      var values = new ArrayList<>(this.contents == null ? List.of() : this.contents);
+      values.add(child.build());
+      return contents(values);
+    }
+
+    /**
+     * Appends {@code contents} using a {@link McpTextResourceContents} builder.
+     *
+     * @param configure the child configuration, invoked once before this builder changes
+     * @return this builder
+     */
+    public Builder textResourceContents(Consumer<McpTextResourceContents.Builder> configure) {
+      var child = McpTextResourceContents.mcpTextResourceContents();
+      configure.accept(child);
+      var values = new ArrayList<>(this.contents == null ? List.of() : this.contents);
+      values.add(child.build());
+      return contents(values);
+    }
 
     /**
      * Sets {@code meta}.

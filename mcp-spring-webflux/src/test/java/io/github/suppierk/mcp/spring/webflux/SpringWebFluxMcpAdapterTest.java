@@ -33,7 +33,7 @@ class SpringWebFluxMcpAdapterTest {
   private final SpringWebFluxMcpAdapter<McpEmptyContext> adapter =
       new SpringWebFluxMcpAdapter<>(
           new StreamableHttpMcpTransport<>(
-              McpServerKit.builder("webflux-test", "1", McpEmptyContext.class).build()));
+              McpServerKit.mcpServerKit("webflux-test", "1", McpEmptyContext.class).build()));
 
   @Test
   void mapsJsonRequests() {
@@ -94,7 +94,7 @@ class SpringWebFluxMcpAdapterTest {
     var handlerContext = new AtomicReference<McpHandlerContext>();
     var pending = new CompletableFuture<JsonRpcResultResponse>();
     var serverKit =
-        McpServerKit.builder("webflux-cancellation", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("webflux-cancellation", "1", McpEmptyContext.class)
             .asyncMethod(
                 "work",
                 (applicationContext, call, context) -> {
@@ -139,7 +139,7 @@ class SpringWebFluxMcpAdapterTest {
   void passesTheExactApplicationContextAndRejectsNullImmediately() {
     AtomicReference<ApplicationContext> seen = new AtomicReference<>();
     var serverKit =
-        McpServerKit.builder("webflux-context", "1", ApplicationContext.class)
+        McpServerKit.mcpServerKit("webflux-context", "1", ApplicationContext.class)
             .syncMethod(
                 "context",
                 (applicationContext, call, handlerContext) -> {

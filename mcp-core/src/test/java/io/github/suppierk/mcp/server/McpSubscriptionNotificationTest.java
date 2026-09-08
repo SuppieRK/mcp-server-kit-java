@@ -25,7 +25,6 @@ import io.github.suppierk.mcp.protocol.McpSubscriptionsAcknowledgedNotification;
 import io.github.suppierk.mcp.protocol.McpSubscriptionsListenResultResponse;
 import io.github.suppierk.mcp.protocol.McpTextContent;
 import io.github.suppierk.mcp.protocol.McpTextResourceContents;
-import io.github.suppierk.mcp.protocol.McpTool;
 import io.github.suppierk.mcp.protocol.McpToolListChangedNotification;
 import java.net.URI;
 import java.util.ArrayList;
@@ -124,12 +123,16 @@ class McpSubscriptionNotificationTest {
   @Test
   void toolsOnlyKitsCanSubscribeToToolChanges() {
     try (var server =
-        McpServerKit.builder("tools", "1", McpEmptyContext.class)
+        McpServerKit.mcpServerKit("tools", "1", McpEmptyContext.class)
             .syncTool(
-                new McpTool(
-                    "hello", JsonTestValues.object(JSON.objectNode().put("type", "object"))),
-                (applicationContext, parameters, handlerContext) ->
-                    new McpCallToolResult(List.of(new McpTextContent("Hello, World!"))))
+                registration ->
+                    registration
+                        .name("hello")
+                        .inputSchema(JsonTestValues.object(JSON.objectNode().put("type", "object")))
+                        .handler(
+                            (applicationContext, parameters, handlerContext) ->
+                                new McpCallToolResult(
+                                    List.of(new McpTextContent("Hello, World!")))))
             .build()) {
       var subscriber = listen(server, 1, filters(true, false, false, List.of()));
       server.emit(toolChanged());
@@ -330,7 +333,7 @@ class McpSubscriptionNotificationTest {
   }
 
   private static McpServerKit<McpEmptyContext> server() {
-    return McpServerKit.builder("subscriptions", "1", McpEmptyContext.class)
+    return McpServerKit.mcpServerKit("subscriptions", "1", McpEmptyContext.class)
         .syncResource(
             new McpResource(RESOURCE, "aggregate"),
             (applicationContext, request, handlerContext) ->
