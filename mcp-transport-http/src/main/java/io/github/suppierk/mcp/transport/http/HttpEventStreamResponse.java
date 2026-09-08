@@ -293,7 +293,7 @@ public final class HttpEventStreamResponse implements HttpMcpResponse, AutoClose
     }
 
     /** Waits until a frame or terminal signal is available. */
-    private void awaitFrame() throws IOException {
+    private synchronized void awaitFrame() throws IOException {
       while (!current.hasRemaining() && failure == null && !complete && !inputClosed) {
         try {
           wait();
