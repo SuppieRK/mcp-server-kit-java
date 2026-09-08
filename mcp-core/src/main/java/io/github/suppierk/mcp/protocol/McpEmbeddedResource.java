@@ -23,7 +23,7 @@ public record McpEmbeddedResource(
   public McpEmbeddedResource {
     Objects.requireNonNull(meta, "meta");
     Objects.requireNonNull(annotations, "annotations");
-    resource = McpProtocol.copy(Objects.requireNonNull(resource, "resource"));
+    resource = McpProtocol.copy(Objects.requireNonNull(resource, TYPE));
   }
 
   /**

@@ -43,7 +43,7 @@ class JavalinExampleApplicationTest {
     HttpResponse<String> response =
         post(
             "/mcp/public",
-            McpCallToolRequest.METHOD,
+            McpCallToolRequest.METHOD_NAME,
             toolCall("hello", JSON.createObjectNode()),
             null);
 
@@ -69,7 +69,7 @@ class JavalinExampleApplicationTest {
     HttpResponse<String> response =
         post(
             "/mcp/protected",
-            McpCallToolRequest.METHOD,
+            McpCallToolRequest.METHOD_NAME,
             toolCall("current-user", JSON.createObjectNode()),
             request -> request.header("Authorization", basic(USERNAME, PASSWORD)));
 
@@ -85,7 +85,7 @@ class JavalinExampleApplicationTest {
     HttpResponse<String> response =
         post(
             "/mcp/protected",
-            McpCallToolRequest.METHOD,
+            McpCallToolRequest.METHOD_NAME,
             toolCall("current-user", JSON.createObjectNode().put("unexpected", "value")),
             request -> request.header("Authorization", basic(USERNAME, PASSWORD)));
 
@@ -96,11 +96,11 @@ class JavalinExampleApplicationTest {
   @Test
   void exposesSeparateFixedRegistries() throws Exception {
     HttpResponse<String> publicList =
-        post("/mcp/public", McpListToolsRequest.METHOD, JSON.createObjectNode(), null);
+        post("/mcp/public", McpListToolsRequest.METHOD_NAME, JSON.createObjectNode(), null);
     HttpResponse<String> protectedList =
         post(
             "/mcp/protected",
-            McpListToolsRequest.METHOD,
+            McpListToolsRequest.METHOD_NAME,
             JSON.createObjectNode(),
             request -> request.header("Authorization", basic(USERNAME, PASSWORD)));
 

@@ -20,9 +20,8 @@ public final class JsonValues {
    * @param value the JSON object
    * @return an immutable copy
    */
-  @SuppressWarnings("unchecked")
-  public static Map<String, ?> copyObject(Map<String, ?> value) {
-    return (Map<String, ?>) copyJson(Objects.requireNonNull(value, "value"));
+  public static Map<String, Object> copyObject(Map<String, ?> value) {
+    return copyMembers(Objects.requireNonNull(value, "value"));
   }
 
   /**
@@ -50,15 +49,7 @@ public final class JsonValues {
       return value;
     }
     if (value instanceof Map<?, ?> object) {
-      Map<String, Object> copy = new LinkedHashMap<>();
-      object.forEach(
-          (key, entry) -> {
-            if (!(key instanceof String name)) {
-              throw new IllegalArgumentException("A JSON object key must be text");
-            }
-            copy.put(name, entry == McpJsonNull.INSTANCE ? null : copyJson(entry));
-          });
-      return Collections.unmodifiableMap(copy);
+      return copyMembers(object);
     }
     if (value instanceof List<?> array) {
       List<Object> copy = new ArrayList<>(array.size());
@@ -66,5 +57,18 @@ public final class JsonValues {
       return Collections.unmodifiableList(copy);
     }
     throw new IllegalArgumentException("Unsupported JSON value: " + value.getClass().getName());
+  }
+
+  /** Validates object keys and detaches every member from caller-owned containers. */
+  private static Map<String, Object> copyMembers(Map<?, ?> object) {
+    Map<String, Object> copy = new LinkedHashMap<>();
+    object.forEach(
+        (key, entry) -> {
+          if (!(key instanceof String name)) {
+            throw new IllegalArgumentException("A JSON object key must be text");
+          }
+          copy.put(name, entry == McpJsonNull.INSTANCE ? null : copyJson(entry));
+        });
+    return Collections.unmodifiableMap(copy);
   }
 }

@@ -11,7 +11,7 @@ import java.util.function.Consumer;
  */
 public record McpElicitRequest(McpElicitRequestParams params) implements McpInputRequest {
 
-  private static final String METHOD = "elicitation/create";
+  private static final String METHOD_NAME = "elicitation/create";
 
   /** Validates and copies the protocol fields. */
   public McpElicitRequest {
@@ -24,7 +24,7 @@ public record McpElicitRequest(McpElicitRequestParams params) implements McpInpu
    * @return the constant value
    */
   public String method() {
-    return METHOD;
+    return METHOD_NAME;
   }
 
   /**

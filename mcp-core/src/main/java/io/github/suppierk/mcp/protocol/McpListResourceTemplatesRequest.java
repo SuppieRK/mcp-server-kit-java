@@ -14,7 +14,7 @@ public record McpListResourceTemplatesRequest(Object id, McpPaginatedRequestPara
     implements McpClientRequest {
 
   /** The request wire-method name. */
-  public static final String METHOD = "resources/templates/list";
+  public static final String METHOD_NAME = "resources/templates/list";
 
   /** Validates and copies the protocol fields. */
   public McpListResourceTemplatesRequest {
@@ -46,7 +46,7 @@ public record McpListResourceTemplatesRequest(Object id, McpPaginatedRequestPara
    * @return the constant value
    */
   public String method() {
-    return METHOD;
+    return METHOD_NAME;
   }
 
   /**

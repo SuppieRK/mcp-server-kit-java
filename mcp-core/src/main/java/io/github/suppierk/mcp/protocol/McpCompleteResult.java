@@ -29,15 +29,6 @@ public record McpCompleteResult(
   }
 
   /**
-   * Returns a copy of the completion value.
-   *
-   * @return the copied completion value
-   */
-  public Map<String, ?> completion() {
-    return McpProtocol.copy(completion);
-  }
-
-  /**
    * Creates a builder for {@link McpCompleteResult}.
    *
    * @return a new builder

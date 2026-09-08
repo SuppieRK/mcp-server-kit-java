@@ -9,9 +9,11 @@ public final class McpMissingRequiredClientCapabilityException extends McpProtoc
   @Serial private static final long serialVersionUID = 1L;
 
   /** The fixed wire error code. */
-  public static final int CODE = -32021;
+  public static final int ERROR_CODE = -32021;
 
   /** The client capabilities required by the failed operation. */
+  // MCP serializes JsonRpcErrorResponse; Java object-stream serialization is not supported.
+  @SuppressWarnings("java:S1948")
   private final McpClientCapabilities requiredCapabilities;
 
   /**
@@ -22,7 +24,7 @@ public final class McpMissingRequiredClientCapabilityException extends McpProtoc
    */
   public McpMissingRequiredClientCapabilityException(
       String message, McpClientCapabilities requiredCapabilities) {
-    super(CODE, message);
+    super(ERROR_CODE, message);
     this.requiredCapabilities =
         Objects.requireNonNull(requiredCapabilities, "requiredCapabilities");
   }

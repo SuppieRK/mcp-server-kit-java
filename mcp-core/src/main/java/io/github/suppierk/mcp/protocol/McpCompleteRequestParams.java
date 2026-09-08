@@ -29,15 +29,6 @@ public record McpCompleteRequestParams(
   }
 
   /**
-   * Returns a copy of the argument.
-   *
-   * @return the copied argument
-   */
-  public Map<String, ?> argument() {
-    return McpProtocol.copy(argument);
-  }
-
-  /**
    * Returns a copy of the optional completion context.
    *
    * @return the copied context

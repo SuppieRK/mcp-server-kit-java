@@ -38,15 +38,6 @@ public record McpUntitledMultiSelectEnumSchema(
   }
 
   /**
-   * Returns a copy of the item schema.
-   *
-   * @return the copied item schema
-   */
-  public Map<String, ?> items() {
-    return McpProtocol.copy(items);
-  }
-
-  /**
    * Gets the constant {@code type} value.
    *
    * @return the constant value

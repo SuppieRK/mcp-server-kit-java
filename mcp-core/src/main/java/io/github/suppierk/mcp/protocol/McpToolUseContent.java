@@ -31,15 +31,6 @@ public record McpToolUseContent(
   }
 
   /**
-   * Returns a copy of the tool input.
-   *
-   * @return the copied input
-   */
-  public Map<String, ?> input() {
-    return McpProtocol.copy(input);
-  }
-
-  /**
    * Gets the constant {@code type} value.
    *
    * @return the constant value

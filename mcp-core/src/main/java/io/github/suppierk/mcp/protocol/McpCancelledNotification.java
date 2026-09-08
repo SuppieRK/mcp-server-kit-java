@@ -19,7 +19,7 @@ import java.util.function.Consumer;
 public record McpCancelledNotification(McpCancelledNotificationParams params)
     implements McpServerNotification, JsonRpcMessage {
 
-  private static final String METHOD = "notifications/cancelled";
+  private static final String METHOD_NAME = "notifications/cancelled";
 
   /** Validates and copies the protocol fields. */
   public McpCancelledNotification {
@@ -41,7 +41,7 @@ public record McpCancelledNotification(McpCancelledNotificationParams params)
    * @return the constant value
    */
   public String method() {
-    return METHOD;
+    return METHOD_NAME;
   }
 
   /**

@@ -1,9 +1,16 @@
 package io.github.suppierk.mcp.server;
 
+import io.github.suppierk.mcp.protocol.JsonRpcErrorResponse;
 import java.io.Serial;
 import java.util.Objects;
 
-/** A deliberate MCP protocol failure whose wire code is fixed by its concrete type. */
+/**
+ * A deliberate MCP protocol failure whose wire code is fixed by its concrete type.
+ *
+ * <p>These exceptions are application-side signals. The server kit converts them to {@link
+ * JsonRpcErrorResponse} for MCP JSON output. Java object-stream serialization of these exceptions
+ * is not supported.
+ */
 public abstract sealed class McpProtocolException extends RuntimeException
     permits McpHeaderMismatchException,
         McpInternalException,

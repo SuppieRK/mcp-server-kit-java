@@ -15,7 +15,7 @@ import java.util.function.Consumer;
 public record McpDiscoverRequest(Object id, McpRequestParams params) implements McpClientRequest {
 
   /** The request wire-method name. */
-  public static final String METHOD = "server/discover";
+  public static final String METHOD_NAME = "server/discover";
 
   /** Validates and copies the protocol fields. */
   public McpDiscoverRequest {
@@ -47,7 +47,7 @@ public record McpDiscoverRequest(Object id, McpRequestParams params) implements 
    * @return the constant value
    */
   public String method() {
-    return METHOD;
+    return METHOD_NAME;
   }
 
   /**

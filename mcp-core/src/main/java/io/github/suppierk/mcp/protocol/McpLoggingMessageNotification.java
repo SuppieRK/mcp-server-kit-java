@@ -13,7 +13,7 @@ import java.util.function.Consumer;
 public record McpLoggingMessageNotification(McpLoggingMessageNotificationParams params)
     implements McpServerNotification, JsonRpcMessage {
 
-  private static final String METHOD = "notifications/message";
+  private static final String METHOD_NAME = "notifications/message";
 
   /** Validates and copies the protocol fields. */
   public McpLoggingMessageNotification {
@@ -35,7 +35,7 @@ public record McpLoggingMessageNotification(McpLoggingMessageNotificationParams 
    * @return the constant value
    */
   public String method() {
-    return METHOD;
+    return METHOD_NAME;
   }
 
   /**

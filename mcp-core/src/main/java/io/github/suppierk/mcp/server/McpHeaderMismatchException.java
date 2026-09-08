@@ -9,9 +9,11 @@ public final class McpHeaderMismatchException extends McpProtocolException {
   @Serial private static final long serialVersionUID = 1L;
 
   /** The fixed wire error code. */
-  public static final int CODE = -32020;
+  public static final int ERROR_CODE = -32020;
 
   /** Optional structured protocol error data. */
+  // MCP serializes JsonRpcErrorResponse; Java object-stream serialization is not supported.
+  @SuppressWarnings("java:S1948")
   private final Optional<Object> data;
 
   /**
@@ -21,8 +23,8 @@ public final class McpHeaderMismatchException extends McpProtocolException {
    * @param data optional protocol error data
    */
   public McpHeaderMismatchException(String message, Optional<Object> data) {
-    super(CODE, message);
-    this.data = new McpError((long) CODE, data, message).data();
+    super(ERROR_CODE, message);
+    this.data = new McpError((long) ERROR_CODE, data, message).data();
   }
 
   /**

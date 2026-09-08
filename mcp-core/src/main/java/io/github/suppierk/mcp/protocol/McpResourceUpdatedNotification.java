@@ -15,7 +15,7 @@ import java.util.function.Consumer;
 public record McpResourceUpdatedNotification(McpResourceUpdatedNotificationParams params)
     implements McpSubscriptionNotification {
 
-  private static final String METHOD = "notifications/resources/updated";
+  private static final String METHOD_NAME = "notifications/resources/updated";
 
   /** Validates and copies the protocol fields. */
   public McpResourceUpdatedNotification {
@@ -37,7 +37,7 @@ public record McpResourceUpdatedNotification(McpResourceUpdatedNotificationParam
    * @return the constant value
    */
   public String method() {
-    return METHOD;
+    return METHOD_NAME;
   }
 
   /**

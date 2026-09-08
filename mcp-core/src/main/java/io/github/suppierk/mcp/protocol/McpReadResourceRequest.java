@@ -14,7 +14,7 @@ public record McpReadResourceRequest(Object id, McpReadResourceRequestParams par
     implements McpClientRequest {
 
   /** The request wire-method name. */
-  public static final String METHOD = "resources/read";
+  public static final String METHOD_NAME = "resources/read";
 
   /** Validates and copies the protocol fields. */
   public McpReadResourceRequest {
@@ -46,7 +46,7 @@ public record McpReadResourceRequest(Object id, McpReadResourceRequestParams par
    * @return the constant value
    */
   public String method() {
-    return METHOD;
+    return METHOD_NAME;
   }
 
   /**

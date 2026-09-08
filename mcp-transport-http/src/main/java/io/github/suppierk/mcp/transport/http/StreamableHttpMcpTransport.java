@@ -49,8 +49,11 @@ import java.util.stream.Collectors;
  *     Streamable HTTP transport</a>
  */
 public final class StreamableHttpMcpTransport<C> {
+  private static final String CONTENT_TYPE_HEADER = "Content-Type";
+  private static final String JSON_MEDIA_TYPE = "application/json";
+
   private static final Pattern JSON_NUMBER =
-      Pattern.compile("-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?");
+      Pattern.compile("-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?");
   private final McpServerKit<C> serverKit;
   private final Set<Origin> allowedOrigins;
 
@@ -98,7 +101,7 @@ public final class StreamableHttpMcpTransport<C> {
     }
     if (message instanceof McpClientNotification
         || message instanceof JsonRpcNotification notification
-            && McpClientNotification.METHOD.equals(notification.method())) {
+            && McpClientNotification.METHOD_NAME.equals(notification.method())) {
       return CompletableFuture.completedFuture(
           httpError(400, "Cancellation notifications are only supported over stdio"));
     }
@@ -112,7 +115,7 @@ public final class StreamableHttpMcpTransport<C> {
   /** Selects the fixed event-stream response cases from decoded request semantics. */
   private static boolean requiresEventStream(JsonRpcMessage message) {
     if (message instanceof McpClientRequest request) {
-      return McpSubscriptionsListenRequest.METHOD.equals(request.method())
+      return McpSubscriptionsListenRequest.METHOD_NAME.equals(request.method())
           || request
               .params()
               .meta()
@@ -122,7 +125,7 @@ public final class StreamableHttpMcpTransport<C> {
     }
     if (message instanceof JsonRpcRequest request) {
       Object metadata = request.params().get("_meta");
-      return McpSubscriptionsListenRequest.METHOD.equals(request.method())
+      return McpSubscriptionsListenRequest.METHOD_NAME.equals(request.method())
           || (metadata instanceof Map<?, ?> values
               && values.get("progressToken") != null
               && values.get("progressToken") != McpJsonNull.INSTANCE);
@@ -138,16 +141,16 @@ public final class StreamableHttpMcpTransport<C> {
     if (!"POST".equalsIgnoreCase(request.method())) {
       return httpError(405, "Only POST is supported");
     }
-    List<String> contentTypes = request.headerValues("Content-Type");
+    List<String> contentTypes = request.headerValues(CONTENT_TYPE_HEADER);
     if (contentTypes.size() != 1) {
       return httpError(400, "Content-Type must have one value");
     }
     String contentType = contentTypes.get(0);
     String mediaType = contentType.split(";", 2)[0].trim();
-    if (!"application/json".equalsIgnoreCase(mediaType)) {
+    if (!JSON_MEDIA_TYPE.equalsIgnoreCase(mediaType)) {
       return httpError(415, "Content-Type must be application/json");
     }
-    if (!accepts(request, "application/json") && !accepts(request, "text/event-stream")) {
+    if (!accepts(request, JSON_MEDIA_TYPE) && !accepts(request, "text/event-stream")) {
       return httpError(406, "Accept must allow JSON or event streams");
     }
     if (!hasOneValue(request, "MCP-Protocol-Version") || !hasOneValue(request, "Mcp-Method")) {
@@ -216,27 +219,22 @@ public final class StreamableHttpMcpTransport<C> {
         && !(message instanceof JsonRpcNotification)) {
       return null;
     }
-    String method =
-        message instanceof JsonRpcRequest call
-            ? call.method()
-            : message instanceof McpClientRequest call
-                ? call.method()
-                : message instanceof McpClientNotification notification
-                    ? notification.method()
-                    : ((JsonRpcNotification) message).method();
+    String method = messageMethod(message);
     Map<String, ?> params = message instanceof JsonRpcRequest call ? call.params() : null;
     if (!request.header("Mcp-Method").equals(method)) {
       return protocolError(
-          400, McpHeaderMismatchException.CODE, "Header and body method do not agree");
+          400, McpHeaderMismatchException.ERROR_CODE, "Header and body method do not agree");
     }
     boolean isRequest = message instanceof JsonRpcRequest || message instanceof McpClientRequest;
-    String bodyVersion =
-        message instanceof McpClientRequest call
-            ? call.params().meta().protocolVersion()
-            : message instanceof JsonRpcRequest ? bodyVersion(params) : null;
+    String bodyVersion = null;
+    if (message instanceof McpClientRequest call) {
+      bodyVersion = call.params().meta().protocolVersion();
+    } else if (message instanceof JsonRpcRequest) {
+      bodyVersion = bodyVersion(params);
+    }
     if (isRequest && !Objects.equals(request.header("MCP-Protocol-Version"), bodyVersion)) {
       return protocolError(
-          400, McpHeaderMismatchException.CODE, "Header and body version do not agree");
+          400, McpHeaderMismatchException.ERROR_CODE, "Header and body version do not agree");
     }
     String bodyName = message instanceof McpClientRequest call ? requestName(call.params()) : null;
     List<String> headerNames = request.headerValues("Mcp-Name");
@@ -245,13 +243,9 @@ public final class StreamableHttpMcpTransport<C> {
             && (headerNames.size() != 1
                 || !Objects.equals(decodeHeaderValue(headerNames.get(0)), bodyName)))) {
       return protocolError(
-          400, McpHeaderMismatchException.CODE, "Header and body name do not agree");
+          400, McpHeaderMismatchException.ERROR_CODE, "Header and body name do not agree");
     }
-    HttpMcpResponse toolHeaderFailure = validateToolHeaders(request, message);
-    if (toolHeaderFailure != null) {
-      return toolHeaderFailure;
-    }
-    return null;
+    return validateToolHeaders(request, message);
   }
 
   /** Validates every custom header declared by the selected tool's input schema. */
@@ -379,7 +373,7 @@ public final class StreamableHttpMcpTransport<C> {
 
   /** Creates a custom-header mismatch response. */
   private HttpMcpResponse headerMismatch(String message) {
-    return protocolError(400, McpHeaderMismatchException.CODE, message);
+    return protocolError(400, McpHeaderMismatchException.ERROR_CODE, message);
   }
 
   /** Gets the protocol version from generic parameters. */
@@ -392,31 +386,29 @@ public final class StreamableHttpMcpTransport<C> {
 
   /** Gets a protocol declaration name from typed parameters. */
   private static String requestName(McpRequestParameters params) {
-    return params instanceof McpCallToolRequestParams tool
-        ? tool.name()
-        : params instanceof McpGetPromptRequestParams prompt
-            ? prompt.name()
-            : params instanceof McpReadResourceRequestParams resource
-                ? resource.uri().toString()
-                : null;
+    if (params instanceof McpCallToolRequestParams tool) {
+      return tool.name();
+    }
+    if (params instanceof McpGetPromptRequestParams prompt) {
+      return prompt.name();
+    }
+    return params instanceof McpReadResourceRequestParams resource
+        ? resource.uri().toString()
+        : null;
   }
 
-  /** Converts one finite publication to an HTTP response. */
-  private HttpMcpResponse finite(List<JsonRpcMessage> messages) {
-    if (messages.isEmpty()) {
-      return new HttpAcceptedResponse();
+  /** Gets the method after the message has been checked as a request or notification. */
+  private static String messageMethod(JsonRpcMessage message) {
+    if (message instanceof JsonRpcRequest call) {
+      return call.method();
     }
-    JsonRpcResponse response =
-        messages.stream()
-            .filter(JsonRpcResponse.class::isInstance)
-            .map(JsonRpcResponse.class::cast)
-            .reduce((first, second) -> second)
-            .orElse(null);
-    if (response == null) {
-      return httpError(500, "The MCP server kit returned no response");
+    if (message instanceof McpClientRequest call) {
+      return call.method();
     }
-    return new HttpJsonResponse(
-        status(response), Map.of("Content-Type", "application/json"), serverKit.encode(response));
+    if (message instanceof McpClientNotification notification) {
+      return notification.method();
+    }
+    return ((JsonRpcNotification) message).method();
   }
 
   /** Maps protocol error codes to HTTP status codes. */
@@ -424,10 +416,10 @@ public final class StreamableHttpMcpTransport<C> {
     if (!(response instanceof JsonRpcErrorResponse error)) {
       return 200;
     }
-    if (error.code() == McpMethodNotFoundException.CODE) {
+    if (error.code() == McpMethodNotFoundException.ERROR_CODE) {
       return 404;
     }
-    return error.code() == McpInternalException.CODE ? 200 : 400;
+    return error.code() == McpInternalException.ERROR_CODE ? 200 : 400;
   }
 
   /** Creates one encoded event stream and its close action. */
@@ -474,7 +466,7 @@ public final class StreamableHttpMcpTransport<C> {
 
   /** Creates one general HTTP validation error. */
   private HttpJsonResponse httpError(int status, String message) {
-    return protocolError(status, McpInvalidRequestException.CODE, message);
+    return protocolError(status, McpInvalidRequestException.ERROR_CODE, message);
   }
 
   /** Creates one encoded protocol error. */
@@ -482,7 +474,7 @@ public final class StreamableHttpMcpTransport<C> {
     JsonRpcErrorResponse response =
         new JsonRpcErrorResponse(McpJsonNull.INSTANCE, code, message, Optional.empty());
     return new HttpJsonResponse(
-        status, Map.of("Content-Type", "application/json"), serverKit.encode(response));
+        status, Map.of(CONTENT_TYPE_HEADER, JSON_MEDIA_TYPE), serverKit.encode(response));
   }
 
   /** Collects one finite publication. */
@@ -542,8 +534,30 @@ public final class StreamableHttpMcpTransport<C> {
       result.completeExceptionally(failure);
     }
 
+    /** Converts one finite publication to an HTTP response. */
+    private HttpMcpResponse finite(List<JsonRpcMessage> messages) {
+      if (messages.isEmpty()) {
+        return new HttpAcceptedResponse();
+      }
+      JsonRpcResponse response =
+          messages.stream()
+              .filter(JsonRpcResponse.class::isInstance)
+              .map(JsonRpcResponse.class::cast)
+              .reduce((first, second) -> second)
+              .orElse(null);
+      if (response == null) {
+        return httpError(500, "The MCP server kit returned no response");
+      }
+      return new HttpJsonResponse(
+          status(response),
+          Map.of(CONTENT_TYPE_HEADER, JSON_MEDIA_TYPE),
+          serverKit.encode(response));
+    }
+
     /** {@inheritDoc} */
     @Override
+    // Complete the returned future even if encoding fails with an Error.
+    @SuppressWarnings("java:S1181")
     public void onComplete() {
       try {
         result.complete(finite(List.copyOf(messages)));

@@ -38,13 +38,11 @@ class McpAudioContentTest {
             .build()
             .meta()
             .isEmpty());
-    assertThrows(
-        NullPointerException.class,
-        () ->
-            McpAudioContent.mcpAudioContent()
-                .meta((Optional<McpMetaObject>) null)
-                .data("YXVkaW8=")
-                .mimeType("audio/mpeg")
-                .build());
+    var nullMetadata =
+        McpAudioContent.mcpAudioContent()
+            .meta((Optional<McpMetaObject>) null)
+            .data("YXVkaW8=")
+            .mimeType("audio/mpeg");
+    assertThrows(NullPointerException.class, nullMetadata::build);
   }
 }

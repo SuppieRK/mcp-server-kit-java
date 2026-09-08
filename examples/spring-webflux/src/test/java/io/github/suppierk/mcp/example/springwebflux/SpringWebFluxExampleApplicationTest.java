@@ -29,7 +29,11 @@ class SpringWebFluxExampleApplicationTest {
 
   @Test
   void callsTheAnonymousHelloTool() {
-    post("/mcp/public", McpCallToolRequest.METHOD, toolCall("hello", JSON.createObjectNode()), null)
+    post(
+            "/mcp/public",
+            McpCallToolRequest.METHOD_NAME,
+            toolCall("hello", JSON.createObjectNode()),
+            null)
         .expectStatus()
         .isOk()
         .expectBody()
@@ -49,7 +53,7 @@ class SpringWebFluxExampleApplicationTest {
   void passesTheAuthenticatedSpringIdentityToTheProtectedTool() {
     post(
             "/mcp/protected",
-            McpCallToolRequest.METHOD,
+            McpCallToolRequest.METHOD_NAME,
             toolCall("current-user", JSON.createObjectNode()),
             headers -> headers.setBasicAuth(USERNAME, PASSWORD))
         .expectStatus()
@@ -67,7 +71,7 @@ class SpringWebFluxExampleApplicationTest {
   void rejectsArgumentsOutsideTheClosedCurrentUserSchema() {
     post(
             "/mcp/protected",
-            McpCallToolRequest.METHOD,
+            McpCallToolRequest.METHOD_NAME,
             toolCall("current-user", JSON.createObjectNode().put("unexpected", "value")),
             headers -> headers.setBasicAuth(USERNAME, PASSWORD))
         .expectStatus()
@@ -79,7 +83,7 @@ class SpringWebFluxExampleApplicationTest {
 
   @Test
   void exposesSeparateFixedRegistries() {
-    post("/mcp/public", McpListToolsRequest.METHOD, JSON.createObjectNode(), null)
+    post("/mcp/public", McpListToolsRequest.METHOD_NAME, JSON.createObjectNode(), null)
         .expectStatus()
         .isOk()
         .expectBody()
@@ -90,7 +94,7 @@ class SpringWebFluxExampleApplicationTest {
 
     post(
             "/mcp/protected",
-            McpListToolsRequest.METHOD,
+            McpListToolsRequest.METHOD_NAME,
             JSON.createObjectNode(),
             headers -> headers.setBasicAuth(USERNAME, PASSWORD))
         .expectStatus()

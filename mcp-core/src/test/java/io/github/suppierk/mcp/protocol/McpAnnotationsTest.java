@@ -24,9 +24,10 @@ class McpAnnotationsTest {
           Double.NEGATIVE_INFINITY,
           Double.POSITIVE_INFINITY
         }) {
+      var suppliedPriority = Optional.of(priority);
       assertThrows(
           IllegalArgumentException.class,
-          () -> new McpAnnotations(Optional.empty(), Optional.empty(), Optional.of(priority)));
+          () -> new McpAnnotations(Optional.empty(), Optional.empty(), suppliedPriority));
     }
   }
 }

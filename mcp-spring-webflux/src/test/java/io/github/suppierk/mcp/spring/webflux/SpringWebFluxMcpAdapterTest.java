@@ -159,9 +159,8 @@ class SpringWebFluxMcpAdapterTest {
             .statusCode()
             .value());
     assertSame(applicationContext, seen.get());
-    assertThrows(
-        NullPointerException.class,
-        () -> contextAdapter.handle(null, request("application/json", "server/discover", true)));
+    var discoveryRequest = request("application/json", "server/discover", true);
+    assertThrows(NullPointerException.class, () -> contextAdapter.handle(null, discoveryRequest));
   }
 
   private static MockServerRequest request(String accept, String method, boolean request) {

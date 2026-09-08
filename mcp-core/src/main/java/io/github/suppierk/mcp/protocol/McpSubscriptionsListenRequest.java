@@ -16,7 +16,7 @@ public record McpSubscriptionsListenRequest(Object id, McpSubscriptionsListenReq
     implements McpClientRequest {
 
   /** The request wire-method name. */
-  public static final String METHOD = "subscriptions/listen";
+  public static final String METHOD_NAME = "subscriptions/listen";
 
   /** Validates and copies the protocol fields. */
   public McpSubscriptionsListenRequest {
@@ -48,7 +48,7 @@ public record McpSubscriptionsListenRequest(Object id, McpSubscriptionsListenReq
    * @return the constant value
    */
   public String method() {
-    return METHOD;
+    return METHOD_NAME;
   }
 
   /**

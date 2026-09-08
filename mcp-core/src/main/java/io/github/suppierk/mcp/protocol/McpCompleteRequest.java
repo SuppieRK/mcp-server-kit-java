@@ -14,7 +14,7 @@ public record McpCompleteRequest(Object id, McpCompleteRequestParams params)
     implements McpClientRequest {
 
   /** The request wire-method name. */
-  public static final String METHOD = "completion/complete";
+  public static final String METHOD_NAME = "completion/complete";
 
   /** Validates and copies the protocol fields. */
   public McpCompleteRequest {
@@ -46,7 +46,7 @@ public record McpCompleteRequest(Object id, McpCompleteRequestParams params)
    * @return the constant value
    */
   public String method() {
-    return METHOD;
+    return METHOD_NAME;
   }
 
   /**

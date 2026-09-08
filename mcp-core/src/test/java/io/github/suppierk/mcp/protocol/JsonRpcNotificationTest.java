@@ -25,10 +25,10 @@ class JsonRpcNotificationTest {
     supplied.clear();
 
     assertEquals("original", ((List<?>) notification.params().get("entries")).get(0));
-    assertThrows(UnsupportedOperationException.class, () -> notification.params().clear());
-    assertThrows(
-        UnsupportedOperationException.class,
-        () -> ((List<?>) notification.params().get("entries")).clear());
+    var parameters = notification.params();
+    var copiedEntries = (List<?>) parameters.get("entries");
+    assertThrows(UnsupportedOperationException.class, parameters::clear);
+    assertThrows(UnsupportedOperationException.class, copiedEntries::clear);
     try (var kit = McpServerKit.mcpServerKit("notification", "1", McpEmptyContext.class).build()) {
       assertEquals(notification, kit.decode(kit.encode(notification)));
     }

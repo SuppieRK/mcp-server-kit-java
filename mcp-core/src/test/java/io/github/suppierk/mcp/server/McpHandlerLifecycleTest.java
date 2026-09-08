@@ -383,9 +383,9 @@ class McpHandlerLifecycleTest {
                         new CompletionException(new ExecutionException(wrappedError))))
             .build();
 
-    assertErrorCode(kit, request(11, "protocol"), McpInvalidParamsException.CODE);
-    assertErrorCode(kit, request(12, "wrapped/protocol"), McpMethodNotFoundException.CODE);
-    assertErrorCode(kit, request(13, "nested/protocol"), McpInternalException.CODE);
+    assertErrorCode(kit, request(11, "protocol"), McpInvalidParamsException.ERROR_CODE);
+    assertErrorCode(kit, request(12, "wrapped/protocol"), McpMethodNotFoundException.ERROR_CODE);
+    assertErrorCode(kit, request(13, "nested/protocol"), McpInternalException.ERROR_CODE);
     assertSame(directError, failure(kit, request(14, "error")));
     assertSame(wrappedError, failure(kit, request(15, "wrapped/error")));
   }
@@ -477,15 +477,19 @@ class McpHandlerLifecycleTest {
     Handler handler =
         new Handler() {
           @Override
-          public void publish(LogRecord record) {
-            records.add(record);
+          public void publish(LogRecord logRecord) {
+            records.add(logRecord);
           }
 
           @Override
-          public void flush() {}
+          public void flush() {
+            // This handler records directly into an in-memory list.
+          }
 
           @Override
-          public void close() {}
+          public void close() {
+            // The recording handler owns no external resources.
+          }
         };
     handler.setLevel(Level.ALL);
     Logger logger = Logger.getLogger(McpServerKit.class.getName());
@@ -523,16 +527,16 @@ class McpHandlerLifecycleTest {
     }
 
     assertEquals(1, records.size());
-    LogRecord record = records.get(0);
-    assertSame(failure, record.getThrown());
-    assertEquals(true, record.getMessage().contains("method=logged/method"));
-    assertEquals(false, record.getMessage().contains("must-not-be-logged"));
+    LogRecord logRecord = records.get(0);
+    assertSame(failure, logRecord.getThrown());
+    assertEquals(true, logRecord.getMessage().contains("method=logged/method"));
+    assertEquals(false, logRecord.getMessage().contains("must-not-be-logged"));
     String renderedId =
-        record
+        logRecord
             .getMessage()
             .substring(
-                record.getMessage().indexOf("requestId=") + "requestId=".length(),
-                record.getMessage().length() - 1);
+                logRecord.getMessage().indexOf("requestId=") + "requestId=".length(),
+                logRecord.getMessage().length() - 1);
     assertEquals(true, renderedId.length() <= 256);
     assertEquals(true, renderedId.contains("\\n"));
     assertEquals(false, renderedId.contains("\n"));
@@ -691,7 +695,7 @@ class McpHandlerLifecycleTest {
     assertEquals(1, subscriber.messages.size());
     JsonRpcErrorResponse response = (JsonRpcErrorResponse) subscriber.messages.get(0);
     assertEquals(request.id(), response.id());
-    assertEquals(McpInternalException.CODE, response.code());
+    assertEquals(McpInternalException.ERROR_CODE, response.code());
     assertEquals("Internal error", response.message());
     assertEquals(true, response.data().isEmpty());
     assertEquals(null, subscriber.termination.join());

@@ -24,7 +24,7 @@ class McpEndpointTest {
     var params = toolCall("hello", JSON.createObjectNode());
     params.putObject("_meta").put("progressToken", "hello-progress");
     String body =
-        mcpRequest(McpCallToolRequest.METHOD, params)
+        mcpRequest(McpCallToolRequest.METHOD_NAME, params)
             .accept("application/json, text/event-stream")
             .post("/mcp/public")
             .then()
@@ -46,7 +46,7 @@ class McpEndpointTest {
 
   @Test
   void callsTheAnonymousHelloTool() {
-    mcpRequest(McpCallToolRequest.METHOD, toolCall("hello", JSON.createObjectNode()))
+    mcpRequest(McpCallToolRequest.METHOD_NAME, toolCall("hello", JSON.createObjectNode()))
         .when()
         .post("/mcp/public")
         .then()
@@ -80,7 +80,7 @@ class McpEndpointTest {
 
   @Test
   void passesTheQuarkusSecurityIdentityToTheProtectedTool() {
-    mcpRequest(McpCallToolRequest.METHOD, toolCall("current-user", JSON.createObjectNode()))
+    mcpRequest(McpCallToolRequest.METHOD_NAME, toolCall("current-user", JSON.createObjectNode()))
         .auth()
         .preemptive()
         .basic(USERNAME, PASSWORD)
@@ -96,7 +96,7 @@ class McpEndpointTest {
   @Test
   void rejectsArgumentsOutsideTheClosedCurrentUserSchema() {
     mcpRequest(
-            McpCallToolRequest.METHOD,
+            McpCallToolRequest.METHOD_NAME,
             toolCall("current-user", JSON.createObjectNode().put("unexpected", "value")))
         .auth()
         .preemptive()
@@ -110,7 +110,7 @@ class McpEndpointTest {
 
   @Test
   void exposesSeparateFixedRegistries() {
-    mcpRequest(McpListToolsRequest.METHOD, JSON.createObjectNode())
+    mcpRequest(McpListToolsRequest.METHOD_NAME, JSON.createObjectNode())
         .when()
         .post("/mcp/public")
         .then()
@@ -118,7 +118,7 @@ class McpEndpointTest {
         .body("result.tools.size()", equalTo(1))
         .body("result.tools[0].name", equalTo("hello"));
 
-    mcpRequest(McpListToolsRequest.METHOD, JSON.createObjectNode())
+    mcpRequest(McpListToolsRequest.METHOD_NAME, JSON.createObjectNode())
         .auth()
         .preemptive()
         .basic(USERNAME, PASSWORD)

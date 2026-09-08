@@ -170,10 +170,14 @@ public final class HttpEventStreamResponse implements HttpMcpResponse, AutoClose
   /** A subscription used to report a rejected second subscriber. */
   private static final class EmptySubscription implements Flow.Subscription {
     @Override
-    public void request(long count) {}
+    public void request(long count) {
+      // A rejected subscription has no items to request.
+    }
 
     @Override
-    public void cancel() {}
+    public void cancel() {
+      // A rejected subscription owns no upstream work.
+    }
   }
 
   /** Exposes one event frame at a time through blocking reads. */

@@ -105,6 +105,18 @@ import tools.jackson.databind.node.ObjectNode;
  *     features</a>
  */
 public final class McpServerKit<C> implements AutoCloseable {
+  private static final String JSON_RPC_PROPERTY = "jsonrpc";
+  private static final String METHOD_PROPERTY = "method";
+  private static final String MESSAGE_PROPERTY = "message";
+  private static final String META_PROPERTY = "_meta";
+  private static final String PARAMS_PROPERTY = "params";
+  private static final String INPUT_SCHEMA_PROPERTY = "inputSchema";
+  private static final String LIST_CHANGED_PROPERTY = "listChanged";
+  private static final String PRIVATE_CACHE_SCOPE = "private";
+  private static final String COMPLETE_RESULT_TYPE = "complete";
+  private static final String DECLARATION_PARAMETER = "declaration";
+  private static final String HANDLER_PARAMETER = "handler";
+
   private static final System.Logger LOGGER = System.getLogger(McpServerKit.class.getName());
 
   private final String name;
@@ -191,18 +203,18 @@ public final class McpServerKit<C> implements AutoCloseable {
     try {
       value = mapper.reader().with(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).readTree(input);
     } catch (JacksonException exception) {
-      return error(NullNode.getInstance(), McpParseException.CODE, "Parse error");
+      return error(NullNode.getInstance(), McpParseException.ERROR_CODE, "Parse error");
     }
     if (!(value instanceof ObjectNode object)) {
-      return error(NullNode.getInstance(), McpParseException.CODE, "Parse error");
+      return error(NullNode.getInstance(), McpParseException.ERROR_CODE, "Parse error");
     }
-    if (!McpProtocol.JSON_RPC_VERSION.equals(object.path("jsonrpc").stringValue(null))) {
+    if (!McpProtocol.JSON_RPC_VERSION.equals(object.path(JSON_RPC_PROPERTY).stringValue(null))) {
       return error(
           NullNode.getInstance(),
-          McpInvalidRequestException.CODE,
+          McpInvalidRequestException.ERROR_CODE,
           "The message must be a JSON-RPC 2.0 object");
     }
-    return object.has("method") ? decodeCall(object) : decodeResponse(object);
+    return object.has(METHOD_PROPERTY) ? decodeCall(object) : decodeResponse(object);
   }
 
   /**
@@ -214,9 +226,10 @@ public final class McpServerKit<C> implements AutoCloseable {
    * @throws NullPointerException if {@code message} is {@code null}
    */
   public byte[] encode(JsonRpcMessage message) {
-    Objects.requireNonNull(message, "message");
+    Objects.requireNonNull(message, MESSAGE_PROPERTY);
     try {
-      ObjectNode object = mapper.createObjectNode().put("jsonrpc", McpProtocol.JSON_RPC_VERSION);
+      ObjectNode object =
+          mapper.createObjectNode().put(JSON_RPC_PROPERTY, McpProtocol.JSON_RPC_VERSION);
       ObjectNode messageObject = mapper.valueToTree(message);
       object.setAll(messageObject);
       return mapper.writeValueAsBytes(object);
@@ -259,7 +272,7 @@ public final class McpServerKit<C> implements AutoCloseable {
    */
   public Flow.Publisher<JsonRpcMessage> handle(C applicationContext, JsonRpcMessage message) {
     Objects.requireNonNull(applicationContext, "applicationContext");
-    Objects.requireNonNull(message, "message");
+    Objects.requireNonNull(message, MESSAGE_PROPERTY);
     AtomicBoolean subscribed = new AtomicBoolean();
     return subscriber -> {
       Objects.requireNonNull(subscriber, "subscriber");
@@ -315,16 +328,7 @@ public final class McpServerKit<C> implements AutoCloseable {
         return;
       }
       if (message instanceof JsonRpcResponse response) {
-        if (response instanceof JsonRpcErrorResponse errorResponse
-            && (errorResponse.code() == McpInvalidParamsException.CODE
-                || response.id() == McpJsonNull.INSTANCE
-                    && (errorResponse.code() == McpParseException.CODE
-                        || errorResponse.code() == McpInvalidRequestException.CODE))) {
-          output.emit(response);
-        } else {
-          output.emit(
-              error(response.id(), McpInvalidRequestException.CODE, "A server needs a request"));
-        }
+        output.emit(validateIncomingResponse(response));
         output.close();
         return;
       }
@@ -332,7 +336,7 @@ public final class McpServerKit<C> implements AutoCloseable {
           message instanceof JsonRpcRequest generic
               ? generic
               : genericRequest((McpClientRequest) message);
-      Object metadata = request.params().get("_meta");
+      Object metadata = request.params().get(META_PROPERTY);
       output.progressToken(
           metadata instanceof Map<?, ?> fields ? fields.get("progressToken") : null);
       activeRequests.add(output);
@@ -341,12 +345,7 @@ public final class McpServerKit<C> implements AutoCloseable {
         output.cancel();
         return;
       }
-      JsonRpcResponse response;
-      try {
-        response = dispatch(applicationContext, request, output);
-      } catch (McpProtocolException exception) {
-        response = protocolError(request.id(), exception);
-      }
+      JsonRpcResponse response = dispatchProtocolRequest(applicationContext, request, output);
       if (response != null) {
         output.complete(response);
       }
@@ -355,105 +354,130 @@ public final class McpServerKit<C> implements AutoCloseable {
     }
   }
 
+  /** Preserves decoder failures and rejects application responses sent to a server. */
+  private JsonRpcResponse validateIncomingResponse(JsonRpcResponse response) {
+    if (response instanceof JsonRpcErrorResponse errorResponse
+        && (errorResponse.code() == McpInvalidParamsException.ERROR_CODE
+            || response.id() == McpJsonNull.INSTANCE
+                && (errorResponse.code() == McpParseException.ERROR_CODE
+                    || errorResponse.code() == McpInvalidRequestException.ERROR_CODE))) {
+      return response;
+    }
+    return error(response.id(), McpInvalidRequestException.ERROR_CODE, "A server needs a request");
+  }
+
   /** Dispatches one request or opens one subscription. */
+  private JsonRpcResponse dispatchProtocolRequest(
+      C applicationContext, JsonRpcRequest request, Output output) {
+    try {
+      return dispatch(applicationContext, request, output);
+    } catch (McpProtocolException exception) {
+      return protocolError(request.id(), exception);
+    }
+  }
+
+  /** Dispatches one validated request to its built-in or application handler. */
   private JsonRpcResponse dispatch(C applicationContext, JsonRpcRequest request, Output output) {
     JsonRpcErrorResponse metadataFailure = validateMetadata(request);
     if (metadataFailure != null) {
       return metadataFailure;
     }
     return switch (request.method()) {
-      case McpDiscoverRequest.METHOD -> new McpDiscoverResultResponse(request.id(), discover());
-      case McpListToolsRequest.METHOD ->
+      case McpDiscoverRequest.METHOD_NAME ->
+          new McpDiscoverResultResponse(request.id(), discover());
+      case McpListToolsRequest.METHOD_NAME ->
           tools.isEmpty()
               ? methodNotFound(request)
               : new McpListToolsResultResponse(
                   request.id(),
                   new McpListToolsResult(
                       resultMeta(),
-                      "private",
+                      PRIVATE_CACHE_SCOPE,
                       Optional.empty(),
-                      "complete",
+                      COMPLETE_RESULT_TYPE,
                       tools.values().stream().map(ToolRegistration::declaration).toList(),
                       0L));
-      case McpCallToolRequest.METHOD ->
+      case McpCallToolRequest.METHOD_NAME ->
           tools.isEmpty() ? methodNotFound(request) : callTool(applicationContext, request, output);
-      case McpListResourcesRequest.METHOD ->
+      case McpListResourcesRequest.METHOD_NAME ->
           resources.isEmpty() && resourceTemplates.isEmpty()
               ? methodNotFound(request)
               : new McpListResourcesResultResponse(
                   request.id(),
                   new McpListResourcesResult(
                       resultMeta(),
-                      "private",
+                      PRIVATE_CACHE_SCOPE,
                       Optional.empty(),
                       resources.values().stream().map(ResourceRegistration::declaration).toList(),
-                      "complete",
+                      COMPLETE_RESULT_TYPE,
                       0L));
-      case McpListResourceTemplatesRequest.METHOD ->
+      case McpListResourceTemplatesRequest.METHOD_NAME ->
           resourceTemplates.isEmpty()
               ? methodNotFound(request)
               : new McpListResourceTemplatesResultResponse(
                   request.id(),
                   new McpListResourceTemplatesResult(
                       resultMeta(),
-                      "private",
+                      PRIVATE_CACHE_SCOPE,
                       Optional.empty(),
                       resourceTemplates.values().stream()
                           .map(ResourceTemplateRegistration::declaration)
                           .toList(),
-                      "complete",
+                      COMPLETE_RESULT_TYPE,
                       0L));
-      case McpReadResourceRequest.METHOD ->
+      case McpReadResourceRequest.METHOD_NAME ->
           resources.isEmpty() && resourceTemplates.isEmpty()
               ? methodNotFound(request)
               : readResource(applicationContext, request, output);
-      case McpSubscriptionsListenRequest.METHOD ->
+      case McpSubscriptionsListenRequest.METHOD_NAME ->
           tools.isEmpty() && prompts.isEmpty() && resources.isEmpty() && resourceTemplates.isEmpty()
               ? methodNotFound(request)
               : listen(request, output);
-      case McpListPromptsRequest.METHOD ->
+      case McpListPromptsRequest.METHOD_NAME ->
           prompts.isEmpty()
               ? methodNotFound(request)
               : new McpListPromptsResultResponse(
                   request.id(),
                   new McpListPromptsResult(
                       resultMeta(),
-                      "private",
+                      PRIVATE_CACHE_SCOPE,
                       Optional.empty(),
                       prompts.values().stream().map(PromptRegistration::declaration).toList(),
-                      "complete",
+                      COMPLETE_RESULT_TYPE,
                       0L));
-      case McpGetPromptRequest.METHOD ->
+      case McpGetPromptRequest.METHOD_NAME ->
           prompts.isEmpty()
               ? methodNotFound(request)
               : getPrompt(applicationContext, request, output);
-      case McpCompleteRequest.METHOD -> complete(applicationContext, request, output);
+      case McpCompleteRequest.METHOD_NAME -> complete(applicationContext, request, output);
       default -> invoke(applicationContext, methods.get(request.method()), request, output);
     };
   }
 
   /** Validates the required per-request MCP metadata. */
   private JsonRpcErrorResponse validateMetadata(JsonRpcRequest request) {
-    if (!(request.params().get("_meta") instanceof Map<?, ?> metadata)) {
+    if (!(request.params().get(META_PROPERTY) instanceof Map<?, ?> metadata)) {
       return error(
-          request.id(), McpInvalidParamsException.CODE, "The request needs a _meta object");
+          request.id(), McpInvalidParamsException.ERROR_CODE, "The request needs a _meta object");
     }
     Object protocolVersion = metadata.get(McpProtocol.PROTOCOL_VERSION_KEY);
     if (!(protocolVersion instanceof String)) {
       return error(
-          request.id(), McpInvalidParamsException.CODE, "The request needs a protocol version");
+          request.id(),
+          McpInvalidParamsException.ERROR_CODE,
+          "The request needs a protocol version");
     }
     if (!(metadata.get(McpProtocol.CLIENT_CAPABILITIES_KEY) instanceof Map<?, ?>)) {
       return error(
           request.id(),
-          McpInvalidParamsException.CODE,
+          McpInvalidParamsException.ERROR_CODE,
           "The request needs a client capabilities object");
     }
     if (!McpProtocol.REVISION.equals(protocolVersion)) {
       var data = Map.of("requested", protocolVersion, "supported", List.of(McpProtocol.REVISION));
       return new JsonRpcErrorResponse(
           request.id(),
-          McpUnsupportedProtocolVersionException.CODE,
+          McpUnsupportedProtocolVersionException.ERROR_CODE,
           "Unsupported protocol version",
           Optional.of(data));
     }
@@ -475,7 +499,7 @@ public final class McpServerKit<C> implements AutoCloseable {
     List<String> inputFailures = toolInputs.get(toolName).validate(arguments);
     if (!inputFailures.isEmpty()) {
       return validationError(
-          request, McpInvalidParamsException.CODE, "Tool input is invalid", inputFailures);
+          request, McpInvalidParamsException.ERROR_CODE, "Tool input is invalid", inputFailures);
     }
     McpCallToolRequestParams parameters;
     try {
@@ -505,14 +529,15 @@ public final class McpServerKit<C> implements AutoCloseable {
     }
     Optional<Object> structured = toolResult.structuredContent();
     if (structured.isEmpty()) {
-      return error(request.id(), McpInternalException.CODE, "Tool structured output is missing");
+      return error(
+          request.id(), McpInternalException.ERROR_CODE, "Tool structured output is missing");
     }
     List<String> outputFailures = outputSchema.validate(structured.get());
     return outputFailures.isEmpty()
         ? response
         : validationError(
             request,
-            McpInternalException.CODE,
+            McpInternalException.ERROR_CODE,
             "Tool structured output is invalid",
             outputFailures);
   }
@@ -684,6 +709,8 @@ public final class McpServerKit<C> implements AutoCloseable {
   }
 
   /** Invokes one normalized handler and publishes its terminal response. */
+  // Both synchronous throws and future failures must reach the same onError lifecycle.
+  @SuppressWarnings("java:S1181")
   private <P, R> void invokeHandler(
       C applicationContext,
       P parameters,
@@ -766,10 +793,10 @@ public final class McpServerKit<C> implements AutoCloseable {
   private McpDiscoverResult discover() {
     return new McpDiscoverResult(
         resultMeta(),
-        "private",
+        PRIVATE_CACHE_SCOPE,
         capabilities(),
         instructions,
-        "complete",
+        COMPLETE_RESULT_TYPE,
         List.of(McpProtocol.REVISION),
         0L);
   }
@@ -798,18 +825,18 @@ public final class McpServerKit<C> implements AutoCloseable {
         tools.isEmpty()
                 && methods.keySet().stream().noneMatch(method -> method.startsWith("tools/"))
             ? Optional.empty()
-            : Optional.of(Map.of("listChanged", false));
+            : Optional.of(Map.of(LIST_CHANGED_PROPERTY, false));
     Optional<Map<String, ?>> resourceCapability =
         resources.isEmpty()
                 && resourceTemplates.isEmpty()
                 && methods.keySet().stream().noneMatch(method -> method.startsWith("resources/"))
             ? Optional.empty()
-            : Optional.of(Map.of("listChanged", false, "subscribe", true));
+            : Optional.of(Map.of(LIST_CHANGED_PROPERTY, false, "subscribe", true));
     Optional<Map<String, ?>> promptCapability =
         prompts.isEmpty()
                 && methods.keySet().stream().noneMatch(method -> method.startsWith("prompts/"))
             ? Optional.empty()
-            : Optional.of(Map.of("listChanged", false));
+            : Optional.of(Map.of(LIST_CHANGED_PROPERTY, false));
     return new McpServerCapabilities(
         completionCapability,
         Optional.empty(),
@@ -820,19 +847,14 @@ public final class McpServerKit<C> implements AutoCloseable {
         toolCapability);
   }
 
-  /** Creates one successful response. */
-  private static JsonRpcResultResponse success(JsonRpcRequest request, JsonNode result) {
-    return new JsonRpcResultResponse(request.id(), ProtocolJson.value(result));
-  }
-
   /** Creates one method-not-found response. */
   private static JsonRpcErrorResponse methodNotFound(JsonRpcRequest request) {
-    return error(request.id(), McpMethodNotFoundException.CODE, "Method not found");
+    return error(request.id(), McpMethodNotFoundException.ERROR_CODE, "Method not found");
   }
 
   /** Creates one invalid-parameters response. */
   private static JsonRpcErrorResponse invalidParams(JsonRpcRequest request, String message) {
-    return error(request.id(), McpInvalidParamsException.CODE, message);
+    return error(request.id(), McpInvalidParamsException.ERROR_CODE, message);
   }
 
   /** Creates one error response without data. */
@@ -888,23 +910,23 @@ public final class McpServerKit<C> implements AutoCloseable {
 
   /** Decodes one request or notification. */
   private JsonRpcMessage decodeCall(ObjectNode object) {
-    JsonNode method = object.get("method");
+    JsonNode method = object.get(METHOD_PROPERTY);
     if (method == null || !method.isString() || method.stringValue().isBlank()) {
       return error(
-          NullNode.getInstance(), McpInvalidRequestException.CODE, "The method must be text");
+          NullNode.getInstance(), McpInvalidRequestException.ERROR_CODE, "The method must be text");
     }
     ObjectNode params = mapper.createObjectNode();
-    if (object.has("params")) {
-      if (!(object.get("params") instanceof ObjectNode supplied)) {
+    if (object.has(PARAMS_PROPERTY)) {
+      if (!(object.get(PARAMS_PROPERTY) instanceof ObjectNode supplied)) {
         return error(
             NullNode.getInstance(),
-            McpInvalidRequestException.CODE,
+            McpInvalidRequestException.ERROR_CODE,
             "The params value must be an object");
       }
       params = supplied.deepCopy();
     }
     if (!object.has("id")) {
-      if (McpClientNotification.METHOD.equals(method.stringValue())) {
+      if (McpClientNotification.METHOD_NAME.equals(method.stringValue())) {
         return typedMessage(object, McpClientNotification.class);
       }
       return new JsonRpcNotification(method.stringValue(), ProtocolJson.object(params));
@@ -913,22 +935,23 @@ public final class McpServerKit<C> implements AutoCloseable {
     if (id == null || (!id.isString() && !id.isIntegralNumber())) {
       return error(
           NullNode.getInstance(),
-          McpInvalidRequestException.CODE,
+          McpInvalidRequestException.ERROR_CODE,
           "The request ID must be text or an integer");
     }
     return switch (method.stringValue()) {
-      case McpDiscoverRequest.METHOD -> typedMessage(object, McpDiscoverRequest.class);
-      case McpListToolsRequest.METHOD -> typedMessage(object, McpListToolsRequest.class);
-      case McpCallToolRequest.METHOD -> typedMessage(object, McpCallToolRequest.class);
-      case McpListResourcesRequest.METHOD -> typedMessage(object, McpListResourcesRequest.class);
-      case McpListResourceTemplatesRequest.METHOD ->
+      case McpDiscoverRequest.METHOD_NAME -> typedMessage(object, McpDiscoverRequest.class);
+      case McpListToolsRequest.METHOD_NAME -> typedMessage(object, McpListToolsRequest.class);
+      case McpCallToolRequest.METHOD_NAME -> typedMessage(object, McpCallToolRequest.class);
+      case McpListResourcesRequest.METHOD_NAME ->
+          typedMessage(object, McpListResourcesRequest.class);
+      case McpListResourceTemplatesRequest.METHOD_NAME ->
           typedMessage(object, McpListResourceTemplatesRequest.class);
-      case McpReadResourceRequest.METHOD -> typedMessage(object, McpReadResourceRequest.class);
-      case McpSubscriptionsListenRequest.METHOD ->
+      case McpReadResourceRequest.METHOD_NAME -> typedMessage(object, McpReadResourceRequest.class);
+      case McpSubscriptionsListenRequest.METHOD_NAME ->
           typedMessage(object, McpSubscriptionsListenRequest.class);
-      case McpListPromptsRequest.METHOD -> typedMessage(object, McpListPromptsRequest.class);
-      case McpGetPromptRequest.METHOD -> typedMessage(object, McpGetPromptRequest.class);
-      case McpCompleteRequest.METHOD -> typedMessage(object, McpCompleteRequest.class);
+      case McpListPromptsRequest.METHOD_NAME -> typedMessage(object, McpListPromptsRequest.class);
+      case McpGetPromptRequest.METHOD_NAME -> typedMessage(object, McpGetPromptRequest.class);
+      case McpCompleteRequest.METHOD_NAME -> typedMessage(object, McpCompleteRequest.class);
       default ->
           new JsonRpcRequest(
               ProtocolJson.value(id), method.stringValue(), ProtocolJson.object(params));
@@ -939,15 +962,17 @@ public final class McpServerKit<C> implements AutoCloseable {
   private JsonRpcMessage typedMessage(ObjectNode object, Class<? extends JsonRpcMessage> type) {
     try {
       ObjectNode values = object.deepCopy();
-      values.remove(List.of("jsonrpc", "method"));
+      values.remove(List.of(JSON_RPC_PROPERTY, METHOD_PROPERTY));
       return mapper.treeToValue(values, type);
     } catch (JacksonException | IllegalArgumentException exception) {
       if (McpClientRequest.class.isAssignableFrom(type)) {
         return error(
-            object.get("id"), McpInvalidParamsException.CODE, "The request parameters are invalid");
+            object.get("id"),
+            McpInvalidParamsException.ERROR_CODE,
+            "The request parameters are invalid");
       }
       return error(
-          NullNode.getInstance(), McpInvalidRequestException.CODE, "The request is invalid");
+          NullNode.getInstance(), McpInvalidRequestException.ERROR_CODE, "The request is invalid");
     }
   }
 
@@ -962,14 +987,14 @@ public final class McpServerKit<C> implements AutoCloseable {
     JsonNode id = object.get("id");
     if (id == null) {
       return error(
-          NullNode.getInstance(), McpInvalidRequestException.CODE, "A response needs an ID");
+          NullNode.getInstance(), McpInvalidRequestException.ERROR_CODE, "A response needs an ID");
     }
     boolean hasResult = object.has("result");
     boolean hasError = object.has("error");
     if (hasResult == hasError) {
       return error(
           NullNode.getInstance(),
-          McpInvalidRequestException.CODE,
+          McpInvalidRequestException.ERROR_CODE,
           "A response needs one result or error");
     }
     if (hasResult) {
@@ -979,14 +1004,16 @@ public final class McpServerKit<C> implements AutoCloseable {
     if (!(object.get("error") instanceof ObjectNode error)
         || !error.path("code").isIntegralNumber()
         || !error.path("code").canConvertToInt()
-        || !error.path("message").isString()) {
+        || !error.path(MESSAGE_PROPERTY).isString()) {
       return error(
-          NullNode.getInstance(), McpInvalidRequestException.CODE, "The error value is invalid");
+          NullNode.getInstance(),
+          McpInvalidRequestException.ERROR_CODE,
+          "The error value is invalid");
     }
     return new JsonRpcErrorResponse(
         ProtocolJson.value(id),
         error.path("code").intValue(),
-        error.path("message").stringValue(),
+        error.path(MESSAGE_PROPERTY).stringValue(),
         Optional.ofNullable(error.get("data")).map(ProtocolJson::value));
   }
 
@@ -996,11 +1023,15 @@ public final class McpServerKit<C> implements AutoCloseable {
         new Flow.Subscription() {
           /** {@inheritDoc} */
           @Override
-          public void request(long count) {}
+          public void request(long count) {
+            // A rejected second subscriber has no publication to request.
+          }
 
           /** {@inheritDoc} */
           @Override
-          public void cancel() {}
+          public void cancel() {
+            // A rejected second subscriber owns no upstream work.
+          }
         });
     subscriber.onError(new IllegalStateException("An MCP publication accepts one subscriber"));
   }
@@ -1009,16 +1040,16 @@ public final class McpServerKit<C> implements AutoCloseable {
   private void rejectBuiltInConflicts() {
     Set<String> builtIns =
         Set.of(
-            McpDiscoverRequest.METHOD,
-            McpListToolsRequest.METHOD,
-            McpCallToolRequest.METHOD,
-            McpListResourcesRequest.METHOD,
-            McpListResourceTemplatesRequest.METHOD,
-            McpReadResourceRequest.METHOD,
-            McpSubscriptionsListenRequest.METHOD,
-            McpListPromptsRequest.METHOD,
-            McpGetPromptRequest.METHOD,
-            McpCompleteRequest.METHOD);
+            McpDiscoverRequest.METHOD_NAME,
+            McpListToolsRequest.METHOD_NAME,
+            McpCallToolRequest.METHOD_NAME,
+            McpListResourcesRequest.METHOD_NAME,
+            McpListResourceTemplatesRequest.METHOD_NAME,
+            McpReadResourceRequest.METHOD_NAME,
+            McpSubscriptionsListenRequest.METHOD_NAME,
+            McpListPromptsRequest.METHOD_NAME,
+            McpGetPromptRequest.METHOD_NAME,
+            McpCompleteRequest.METHOD_NAME);
     methods.keySet().stream()
         .filter(builtIns::contains)
         .findFirst()
@@ -1040,7 +1071,7 @@ public final class McpServerKit<C> implements AutoCloseable {
     /** Returns the validated object schema from the immutable declaration. */
     @SuppressWarnings("unchecked")
     private Map<String, ?> inputSchema() {
-      return (Map<String, ?>) declaration.get("inputSchema");
+      return (Map<String, ?>) declaration.get(INPUT_SCHEMA_PROPERTY);
     }
 
     /** Returns the optional structured-output schema. */
@@ -1071,6 +1102,8 @@ public final class McpServerKit<C> implements AutoCloseable {
   @FunctionalInterface
   private interface RegisteredHandler<C, P, R> {
     /** Invokes one registered application handler. */
+    // Preserve the application's covariant future itself so cancellation reaches its owner.
+    @SuppressWarnings("java:S1452")
     CompletableFuture<? extends R> handle(
         C applicationContext, P parameters, McpHandlerContext handlerContext);
   }
@@ -1110,11 +1143,11 @@ public final class McpServerKit<C> implements AutoCloseable {
     private void emit(McpSubscriptionNotification notification, ObjectMapper mapper) {
       ObjectNode encoded = mapper.valueToTree(notification);
       ObjectNode params =
-          encoded.get("params") instanceof ObjectNode supplied
+          encoded.get(PARAMS_PROPERTY) instanceof ObjectNode supplied
               ? supplied
               : mapper.createObjectNode();
       params
-          .putObject("_meta")
+          .putObject(META_PROPERTY)
           .set("io.modelcontextprotocol/subscriptionId", mapper.valueToTree(id));
       Object key =
           notification instanceof McpResourceUpdatedNotification updated
@@ -1131,7 +1164,7 @@ public final class McpServerKit<C> implements AutoCloseable {
               id,
               new McpSubscriptionsListenResult(
                   new McpSubscriptionsListenResultMetaObject(Optional.of(serverInfo), id),
-                  "complete")));
+                  COMPLETE_RESULT_TYPE)));
     }
   }
 
@@ -1180,6 +1213,8 @@ public final class McpServerKit<C> implements AutoCloseable {
     }
 
     /** Adds demand and starts processing on the first valid request. */
+    // Flow reports infrastructure failures, including Error, through onError.
+    @SuppressWarnings("java:S1181")
     private void request(long count) {
       if (count <= 0) {
         fail(new IllegalArgumentException("Demand must be positive"));
@@ -1212,7 +1247,7 @@ public final class McpServerKit<C> implements AutoCloseable {
 
     /** Queues an item before making a subscription visible to concurrent emitters. */
     private void enqueue(JsonRpcMessage message) {
-      Objects.requireNonNull(message, "message");
+      Objects.requireNonNull(message, MESSAGE_PROPERTY);
       synchronized (this) {
         if (finished) {
           return;
@@ -1224,7 +1259,7 @@ public final class McpServerKit<C> implements AutoCloseable {
     /** Retains the latest subscription invalidation for one logical key. */
     private void emitInvalidation(Object key, JsonRpcMessage message) {
       Objects.requireNonNull(key, "key");
-      Objects.requireNonNull(message, "message");
+      Objects.requireNonNull(message, MESSAGE_PROPERTY);
       synchronized (this) {
         if (finished) {
           return;
@@ -1237,7 +1272,7 @@ public final class McpServerKit<C> implements AutoCloseable {
 
     /** Publishes one terminal response if completion wins the request. */
     private void complete(JsonRpcMessage message) {
-      Objects.requireNonNull(message, "message");
+      Objects.requireNonNull(message, MESSAGE_PROPERTY);
       List<Runnable> actions;
       synchronized (this) {
         if (finished) {
@@ -1253,7 +1288,7 @@ public final class McpServerKit<C> implements AutoCloseable {
 
     /** Retains a subscription's terminal response while discarding pending invalidations. */
     private void completeSubscription(JsonRpcMessage message) {
-      Objects.requireNonNull(message, "message");
+      Objects.requireNonNull(message, MESSAGE_PROPERTY);
       List<Runnable> actions;
       synchronized (this) {
         if (finished) {
@@ -1446,63 +1481,87 @@ public final class McpServerKit<C> implements AutoCloseable {
         }
         draining = true;
       }
-      while (true) {
-        JsonRpcMessage next = null;
-        Throwable failure = null;
-        boolean completeNow = false;
-        boolean completeAfterNext = false;
-        synchronized (this) {
-          if (!terminalSignalSent && terminalFailure != null) {
-            failure = terminalFailure;
-            terminalFailure = null;
+      while (drainNext()) {
+        // Reentrant callbacks can add work; keep one owner until the queue is empty.
+      }
+    }
+
+    /** Selects one signal under the monitor and delivers it after releasing the monitor. */
+    private boolean drainNext() {
+      JsonRpcMessage next = null;
+      Throwable failure = null;
+      boolean completeNow = false;
+      boolean completeAfterNext = false;
+      synchronized (this) {
+        if (!terminalSignalSent && terminalFailure != null) {
+          failure = terminalFailure;
+          terminalFailure = null;
+          terminalSignalSent = true;
+        } else if (!terminalSignalSent && demand > 0) {
+          next = takePendingMessage();
+          if (next == null && terminalMessage != null) {
+            next = terminalMessage;
+            terminalMessage = null;
             terminalSignalSent = true;
-          } else if (!terminalSignalSent && demand > 0) {
-            if (!pendingMessages.isEmpty()) {
-              next = pendingMessages.removeFirst();
-            } else if (pendingProgress != null) {
-              next = pendingProgress;
-              pendingProgress = null;
-            } else if (!pendingInvalidations.isEmpty()) {
-              var iterator = pendingInvalidations.entrySet().iterator();
-              next = iterator.next().getValue();
-              iterator.remove();
-            } else if (terminalMessage != null) {
-              next = terminalMessage;
-              terminalMessage = null;
-              terminalSignalSent = true;
-              completeAfterNext = true;
-            }
-            if (next != null && demand != Long.MAX_VALUE) {
-              demand--;
-            }
+            completeAfterNext = true;
           }
-          if (!terminalSignalSent
-              && completeWithoutMessage
-              && pendingMessages.isEmpty()
-              && pendingProgress == null
-              && pendingInvalidations.isEmpty()) {
-            completeNow = true;
-            terminalSignalSent = true;
-          }
-          if (next == null && failure == null && !completeNow) {
-            draining = false;
-            return;
+          if (next != null && demand != Long.MAX_VALUE) {
+            demand--;
           }
         }
-        if (failure != null) {
-          subscriber.onError(failure);
-        } else if (next != null) {
-          try {
-            subscriber.onNext(next);
-            if (completeAfterNext) {
-              subscriber.onComplete();
-            }
-          } catch (Throwable subscriberFailure) {
-            cancel(false);
-          }
-        } else if (completeNow) {
-          subscriber.onComplete();
+        if (!terminalSignalSent
+            && completeWithoutMessage
+            && pendingMessages.isEmpty()
+            && pendingProgress == null
+            && pendingInvalidations.isEmpty()) {
+          completeNow = true;
+          terminalSignalSent = true;
         }
+        if (next == null && failure == null && !completeNow) {
+          draining = false;
+          return false;
+        }
+      }
+      deliver(next, failure, completeAfterNext);
+      return true;
+    }
+
+    /** Takes the next queued message in priority order while holding this output's monitor. */
+    private JsonRpcMessage takePendingMessage() {
+      if (!pendingMessages.isEmpty()) {
+        return pendingMessages.removeFirst();
+      }
+      if (pendingProgress != null) {
+        JsonRpcMessage next = pendingProgress;
+        pendingProgress = null;
+        return next;
+      }
+      if (!pendingInvalidations.isEmpty()) {
+        var iterator = pendingInvalidations.entrySet().iterator();
+        JsonRpcMessage next = iterator.next().getValue();
+        iterator.remove();
+        return next;
+      }
+      return null;
+    }
+
+    /** Delivers a selected signal without holding the publication monitor. */
+    // A subscriber that throws has violated Flow; cancel its work without signalling it again.
+    @SuppressWarnings("java:S1181")
+    private void deliver(JsonRpcMessage next, Throwable failure, boolean completeAfterNext) {
+      if (failure != null) {
+        subscriber.onError(failure);
+      } else if (next != null) {
+        try {
+          subscriber.onNext(next);
+          if (completeAfterNext) {
+            subscriber.onComplete();
+          }
+        } catch (Throwable subscriberFailure) {
+          cancel(false);
+        }
+      } else {
+        subscriber.onComplete();
       }
     }
 
@@ -1745,7 +1804,7 @@ public final class McpServerKit<C> implements AutoCloseable {
     public Builder<C> syncPrompt(
         McpPrompt declaration,
         McpHandler<C, McpGetPromptRequestParams, McpGetPromptResultResponse.Result> handler) {
-      McpPrompt required = Objects.requireNonNull(declaration, "declaration");
+      McpPrompt required = Objects.requireNonNull(declaration, DECLARATION_PARAMETER);
       put(
           prompts,
           required.name(),
@@ -1770,7 +1829,7 @@ public final class McpServerKit<C> implements AutoCloseable {
                 McpGetPromptRequestParams,
                 CompletableFuture<? extends McpGetPromptResultResponse.Result>>
             handler) {
-      McpPrompt required = Objects.requireNonNull(declaration, "declaration");
+      McpPrompt required = Objects.requireNonNull(declaration, DECLARATION_PARAMETER);
       put(
           prompts,
           required.name(),
@@ -1800,8 +1859,7 @@ public final class McpServerKit<C> implements AutoCloseable {
      * @throws NullPointerException if {@code handler} is {@code null}
      */
     public Builder<C> asyncCompletion(
-        McpHandler<C, McpCompleteRequestParams, CompletableFuture<? extends McpCompleteResult>>
-            handler) {
+        McpHandler<C, McpCompleteRequestParams, CompletableFuture<McpCompleteResult>> handler) {
       completion = adaptAsync(handler);
       return this;
     }
@@ -1817,8 +1875,8 @@ public final class McpServerKit<C> implements AutoCloseable {
      */
     public Builder<C> syncMethod(
         String method, McpHandler<C, JsonRpcRequest, JsonRpcResponse> handler) {
-      String required = requireText(method, "method");
-      put(methods, required, adaptSync(handler), "method");
+      String required = requireText(method, METHOD_PROPERTY);
+      put(methods, required, adaptSync(handler), METHOD_PROPERTY);
       return this;
     }
 
@@ -1834,8 +1892,8 @@ public final class McpServerKit<C> implements AutoCloseable {
     public Builder<C> asyncMethod(
         String method,
         McpHandler<C, JsonRpcRequest, CompletableFuture<? extends JsonRpcResponse>> handler) {
-      String required = requireText(method, "method");
-      put(methods, required, adaptAsync(handler), "method");
+      String required = requireText(method, METHOD_PROPERTY);
+      put(methods, required, adaptAsync(handler), METHOD_PROPERTY);
       return this;
     }
 
@@ -1844,7 +1902,7 @@ public final class McpServerKit<C> implements AutoCloseable {
         McpResource declaration,
         RegisteredHandler<C, McpReadResourceRequestParams, McpReadResourceResultResponse.Result>
             handler) {
-      McpResource required = Objects.requireNonNull(declaration, "declaration");
+      McpResource required = Objects.requireNonNull(declaration, DECLARATION_PARAMETER);
       put(
           resources,
           required.uri().toString(),
@@ -1859,7 +1917,7 @@ public final class McpServerKit<C> implements AutoCloseable {
         Pattern uriPattern,
         RegisteredHandler<C, McpReadResourceRequestParams, McpReadResourceResultResponse.Result>
             handler) {
-      McpResourceTemplate required = Objects.requireNonNull(declaration, "declaration");
+      McpResourceTemplate required = Objects.requireNonNull(declaration, DECLARATION_PARAMETER);
       Pattern pattern = Objects.requireNonNull(uriPattern, "uriPattern");
       boolean duplicate =
           resourceTemplates.keySet().stream()
@@ -1899,7 +1957,7 @@ public final class McpServerKit<C> implements AutoCloseable {
 
     /** Adapts one synchronous handler to the internal future lifecycle. */
     private static <C, P, R> RegisteredHandler<C, P, R> adaptSync(McpHandler<C, P, R> value) {
-      McpHandler<C, P, R> required = Objects.requireNonNull(value, "handler");
+      McpHandler<C, P, R> required = Objects.requireNonNull(value, HANDLER_PARAMETER);
       return (applicationContext, parameters, handlerContext) ->
           CompletableFuture.completedFuture(
               required.handle(applicationContext, parameters, handlerContext));
@@ -1907,9 +1965,9 @@ public final class McpServerKit<C> implements AutoCloseable {
 
     /** Adapts one asynchronous handler to the internal future lifecycle. */
     private static <C, P, R> RegisteredHandler<C, P, R> adaptAsync(
-        McpHandler<C, P, CompletableFuture<? extends R>> value) {
-      McpHandler<C, P, CompletableFuture<? extends R>> required =
-          Objects.requireNonNull(value, "handler");
+        McpHandler<C, P, ? extends CompletableFuture<? extends R>> value) {
+      McpHandler<C, P, ? extends CompletableFuture<? extends R>> required =
+          Objects.requireNonNull(value, HANDLER_PARAMETER);
       return required::handle;
     }
 
@@ -1952,17 +2010,17 @@ public final class McpServerKit<C> implements AutoCloseable {
     /** Snapshots the declaration after the callback has completed. */
     private Map<String, ?> declaration(ObjectMapper mapper) {
       Builder.requireText(name, "tool name");
-      Objects.requireNonNull(handler, "handler");
+      Objects.requireNonNull(handler, HANDLER_PARAMETER);
       if (!"object".equals(inputSchema.get("type"))) {
         throw new IllegalArgumentException("A tool input schema must have object type");
       }
       var values = new LinkedHashMap<String, Object>();
       values.put("name", name);
-      values.put("inputSchema", inputSchema);
+      values.put(INPUT_SCHEMA_PROPERTY, inputSchema);
       outputSchema.ifPresent(value -> values.put("outputSchema", value));
       description.ifPresent(value -> values.put("description", value));
       title.ifPresent(value -> values.put("title", value));
-      meta.ifPresent(value -> values.put("_meta", value.values()));
+      meta.ifPresent(value -> values.put(META_PROPERTY, value.values()));
       annotations.ifPresent(
           value -> values.put("annotations", ProtocolJson.object(mapper.valueToTree(value))));
       icons.ifPresent(
@@ -1982,7 +2040,7 @@ public final class McpServerKit<C> implements AutoCloseable {
      * @return this builder
      */
     public ToolBuilder<C, R> inputSchema(Map<String, ?> value) {
-      inputSchema = Objects.requireNonNull(value, "inputSchema");
+      inputSchema = Objects.requireNonNull(value, INPUT_SCHEMA_PROPERTY);
       return this;
     }
 
@@ -2080,7 +2138,7 @@ public final class McpServerKit<C> implements AutoCloseable {
      * @return this builder
      */
     public ToolBuilder<C, R> handler(McpHandler<C, McpCallToolRequestParams, R> value) {
-      handler = Objects.requireNonNull(value, "handler");
+      handler = Objects.requireNonNull(value, HANDLER_PARAMETER);
       return this;
     }
   }

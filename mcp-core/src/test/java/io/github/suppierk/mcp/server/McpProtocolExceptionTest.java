@@ -31,9 +31,8 @@ class McpProtocolExceptionTest {
     assertEquals("Invalid application parameters", exception.getMessage());
     assertEquals(
         "supplied", JsonTestValues.json(exception.data().orElseThrow()).path("field").textValue());
-    assertThrows(
-        UnsupportedOperationException.class,
-        () -> ((Map<?, ?>) exception.data().orElseThrow()).clear());
+    var errorData = (Map<?, ?>) exception.data().orElseThrow();
+    assertThrows(UnsupportedOperationException.class, errorData::clear);
     assertEquals(
         "supplied", JsonTestValues.json(exception.data().orElseThrow()).path("field").textValue());
     assertTrue(Modifier.isFinal(McpProtocolException.class.getMethod("code").getModifiers()));

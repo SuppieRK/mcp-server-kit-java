@@ -51,6 +51,8 @@ public final class StdioMcpTransport<C> {
    * @param <C> the application-context type
    * @return the transport
    */
+  // These are the MCP wire and diagnostic streams, not application logging.
+  @SuppressWarnings("java:S106")
   public static <C> StdioMcpTransport<C> system(McpServerKit<C> serverKit, C applicationContext) {
     return new StdioMcpTransport<>(
         serverKit,
@@ -116,17 +118,14 @@ public final class StdioMcpTransport<C> {
       }
       return;
     }
-    var requestId =
-        message instanceof McpClientRequest request
-            ? request.id()
-            : message instanceof JsonRpcRequest request ? request.id() : null;
+    Object requestId = requestId(message);
     Object key = requestId == null ? new Object() : requestId;
     WritingSubscriber subscriber = new WritingSubscriber();
     if (active.putIfAbsent(key, subscriber) != null) {
       write(
           new JsonRpcErrorResponse(
               requestId,
-              McpInvalidRequestException.CODE,
+              McpInvalidRequestException.ERROR_CODE,
               "The request ID is active",
               Optional.empty()));
       return;
@@ -144,6 +143,14 @@ public final class StdioMcpTransport<C> {
               subscriber.fail(failure);
               return null;
             });
+  }
+
+  /** Gets the identifier of a typed or generic request. */
+  private static Object requestId(JsonRpcMessage message) {
+    if (message instanceof McpClientRequest request) {
+      return request.id();
+    }
+    return message instanceof JsonRpcRequest request ? request.id() : null;
   }
 
   /** Waits for all subscribers after input ends. */
@@ -164,16 +171,6 @@ public final class StdioMcpTransport<C> {
       throw new IllegalStateException("The MCP output stream failed", exception);
     } finally {
       outputLock.unlock();
-    }
-  }
-
-  /** Writes one diagnostic message. */
-  private void diagnostic() {
-    try {
-      diagnostics.write("MCP request failed\n".getBytes(StandardCharsets.UTF_8));
-      diagnostics.flush();
-    } catch (IOException ignored) {
-      // The transport cannot report a failure after the diagnostic stream closes.
     }
   }
 
@@ -216,8 +213,7 @@ public final class StdioMcpTransport<C> {
     /** {@inheritDoc} */
     @Override
     public void onError(Throwable failure) {
-      diagnostic();
-      completion.completeExceptionally(failure);
+      fail(failure);
     }
 
     /** {@inheritDoc} */
@@ -238,6 +234,16 @@ public final class StdioMcpTransport<C> {
     private void fail(Throwable failure) {
       diagnostic();
       completion.completeExceptionally(failure);
+    }
+
+    /** Writes one diagnostic message. */
+    private void diagnostic() {
+      try {
+        diagnostics.write("MCP request failed\n".getBytes(StandardCharsets.UTF_8));
+        diagnostics.flush();
+      } catch (IOException ignored) {
+        // The transport cannot report a failure after the diagnostic stream closes.
+      }
     }
   }
 }

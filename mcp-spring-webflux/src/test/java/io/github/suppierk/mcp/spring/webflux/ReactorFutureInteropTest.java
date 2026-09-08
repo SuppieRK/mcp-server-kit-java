@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import io.github.suppierk.mcp.protocol.JsonRpcErrorResponse;
 import io.github.suppierk.mcp.protocol.JsonRpcMessage;
 import io.github.suppierk.mcp.protocol.JsonRpcRequest;
@@ -28,7 +27,6 @@ import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Mono;
 
 class ReactorFutureInteropTest {
-  private static final JsonNodeFactory JSON = JsonNodeFactory.instance;
 
   @Test
   void nonEmptyMonoProducesOneNonNullAsynchronousToolResult() {
@@ -77,7 +75,7 @@ class ReactorFutureInteropTest {
 
     assertTrue(applicationFuture.get().isCompletedExceptionally());
     var response = assertInstanceOf(JsonRpcErrorResponse.class, message);
-    assertEquals(McpInternalException.CODE, response.code());
+    assertEquals(McpInternalException.ERROR_CODE, response.code());
     assertEquals("Internal error", response.message());
   }
 
@@ -135,7 +133,7 @@ class ReactorFutureInteropTest {
 
     assertEquals(null, applicationFuture.get().join());
     var response = assertInstanceOf(JsonRpcErrorResponse.class, message);
-    assertEquals(McpInternalException.CODE, response.code());
+    assertEquals(McpInternalException.ERROR_CODE, response.code());
     assertEquals("Internal error", response.message());
   }
 
@@ -146,7 +144,7 @@ class ReactorFutureInteropTest {
   private static JsonRpcRequest toolCall(int id) {
     return new JsonRpcRequest(
         id,
-        McpCallToolRequest.METHOD,
+        McpCallToolRequest.METHOD_NAME,
         Map.of(
             "name",
             "reactor",

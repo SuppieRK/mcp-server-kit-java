@@ -182,11 +182,11 @@ final class ProtocolJson extends JacksonAnnotationIntrospector {
 
   /** Converts an internal JSON object to a public JDK object value. */
   @SuppressWarnings("unchecked")
-  static Map<String, ?> object(JsonNode node) {
+  static Map<String, Object> object(JsonNode node) {
     if (!node.isObject()) {
       throw new IllegalArgumentException("A JSON object is required");
     }
-    return (Map<String, ?>) value(node);
+    return (Map<String, Object>) value(node);
   }
 
   /** Supplies protocol-specific names without annotations on public records. */

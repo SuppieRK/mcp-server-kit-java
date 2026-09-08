@@ -14,6 +14,8 @@ import java.util.Optional;
  * @see <a href="https://modelcontextprotocol.io/specification/2026-07-28/schema">MCP schema</a>
  */
 public final class McpProtocol {
+  private static final String VALUE_PARAMETER = "value";
+
   /** The MCP revision that this release implements. */
   public static final String REVISION = "2026-07-28";
 
@@ -33,7 +35,7 @@ public final class McpProtocol {
   private McpProtocol() {}
 
   /** Copies a JSON object into deeply immutable JDK values. */
-  static Map<String, ?> copyObject(Map<String, ?> value) {
+  static Map<String, Object> copyObject(Map<String, ?> value) {
     return JsonValues.copyObject(value);
   }
 
@@ -45,17 +47,17 @@ public final class McpProtocol {
   /** Copies one required JSON value. */
   @SuppressWarnings("unchecked")
   static <T> T copy(T value) {
-    return (T) copyJson(Objects.requireNonNull(value, "value"));
+    return (T) copyJson(Objects.requireNonNull(value, VALUE_PARAMETER));
   }
 
   /** Copies one optional JSON value. */
   static <T> Optional<T> copy(Optional<T> value) {
-    return Objects.requireNonNull(value, "value").map(McpProtocol::copy);
+    return Objects.requireNonNull(value, VALUE_PARAMETER).map(McpProtocol::copy);
   }
 
   /** Copies a list and each JSON value in it. */
   @SuppressWarnings("unchecked")
   static <T> List<T> copy(List<T> value) {
-    return (List<T>) copyJson(Objects.requireNonNull(value, "value"));
+    return (List<T>) copyJson(Objects.requireNonNull(value, VALUE_PARAMETER));
   }
 }

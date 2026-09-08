@@ -24,15 +24,6 @@ public record McpElicitRequestFormParams(String message, Map<String, ?> requeste
   }
 
   /**
-   * Returns a copy of the requested schema.
-   *
-   * @return the copied schema
-   */
-  public Map<String, ?> requestedSchema() {
-    return McpProtocol.copy(requestedSchema);
-  }
-
-  /**
    * Gets the constant {@code mode} value.
    *
    * @return the constant value

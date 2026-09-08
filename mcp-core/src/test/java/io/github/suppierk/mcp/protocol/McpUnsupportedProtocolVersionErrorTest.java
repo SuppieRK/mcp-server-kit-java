@@ -26,7 +26,7 @@ class McpUnsupportedProtocolVersionErrorTest {
         McpServerKit.mcpServerKit("model", "1", McpEmptyContext.class).build();
     JsonRpcErrorResponse decoded = (JsonRpcErrorResponse) server.decode(server.encode(response));
 
-    assertEquals(McpUnsupportedProtocolVersionException.CODE, decoded.code());
+    assertEquals(McpUnsupportedProtocolVersionException.ERROR_CODE, decoded.code());
     assertEquals(
         "1900-01-01",
         JsonTestValues.json(decoded.data().orElseThrow()).path("requested").textValue());

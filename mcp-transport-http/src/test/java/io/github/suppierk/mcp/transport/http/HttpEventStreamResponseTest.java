@@ -107,7 +107,7 @@ class HttpEventStreamResponseTest {
   }
 
   @Test
-  void closingTheResponseReleasesABlockedInputReader() throws Exception {
+  void closingTheResponseReleasesABlockedInputReader() {
     var source = new ControlledPublisher();
     var response = new HttpEventStreamResponse(source);
     var input = response.inputStream();
@@ -223,7 +223,9 @@ class HttpEventStreamResponseTest {
                   }
 
                   @Override
-                  public void cancel() {}
+                  public void cancel() {
+                    // This passive or already-failed source owns no active work.
+                  }
                 });
     var response = new HttpEventStreamResponse(source);
 
@@ -286,14 +288,15 @@ class HttpEventStreamResponseTest {
   }
 
   @Test
-  void allowsOnlyOneConsumptionView() {
+  void allowsOnlyOneConsumptionView() throws IOException {
     var response = new HttpEventStreamResponse(passivePublisher());
     var first = new RecordingSubscriber();
 
     response.events().subscribe(first);
 
     assertThrows(IllegalStateException.class, response::inputStream);
-    assertThrows(IllegalStateException.class, () -> response.writeTo(new ByteArrayOutputStream()));
+    var rejectedOutput = new ByteArrayOutputStream();
+    assertThrows(IllegalStateException.class, () -> response.writeTo(rejectedOutput));
     var second = new RecordingSubscriber();
     response.events().subscribe(second);
     assertInstanceOf(IllegalStateException.class, second.failure);
@@ -306,17 +309,13 @@ class HttpEventStreamResponseTest {
     var afterInput = new RecordingSubscriber();
     inputFirst.events().subscribe(afterInput);
     assertInstanceOf(IllegalStateException.class, afterInput.failure);
-    assertThrows(
-        IllegalStateException.class, () -> inputFirst.writeTo(new ByteArrayOutputStream()));
+    var outputAfterInput = new ByteArrayOutputStream();
+    assertThrows(IllegalStateException.class, () -> inputFirst.writeTo(outputAfterInput));
     inputFirst.close();
 
     var outputFirst = new HttpEventStreamResponse(new SequencePublisher("done"));
-    assertThrows(
-        IllegalStateException.class,
-        () -> {
-          outputFirst.writeTo(new ByteArrayOutputStream());
-          outputFirst.inputStream();
-        });
+    outputFirst.writeTo(new ByteArrayOutputStream());
+    assertThrows(IllegalStateException.class, outputFirst::inputStream);
     var afterOutput = new RecordingSubscriber();
     outputFirst.events().subscribe(afterOutput);
     assertInstanceOf(IllegalStateException.class, afterOutput.failure);
@@ -334,10 +333,14 @@ class HttpEventStreamResponseTest {
         subscriber.onSubscribe(
             new Flow.Subscription() {
               @Override
-              public void request(long count) {}
+              public void request(long count) {
+                // This passive source intentionally emits no signals.
+              }
 
               @Override
-              public void cancel() {}
+              public void cancel() {
+                // This passive or already-failed source owns no active work.
+              }
             });
   }
 
@@ -352,7 +355,9 @@ class HttpEventStreamResponseTest {
     }
 
     @Override
-    public void onNext(ByteBuffer item) {}
+    public void onNext(ByteBuffer item) {
+      // This observer records terminal signals, not event contents.
+    }
 
     @Override
     public void onError(Throwable throwable) {
@@ -381,10 +386,14 @@ class HttpEventStreamResponseTest {
     }
 
     @Override
-    public void onError(Throwable throwable) {}
+    public void onError(Throwable throwable) {
+      // This observer is used only to collect requested event contents.
+    }
 
     @Override
-    public void onComplete() {}
+    public void onComplete() {
+      // Completion carries no event content for this observer.
+    }
   }
 
   private static final class ControlledPublisher implements Flow.Publisher<ByteBuffer> {
@@ -425,7 +434,6 @@ class HttpEventStreamResponseTest {
   private static final class SequencePublisher implements Flow.Publisher<ByteBuffer> {
     private final List<String> values;
     private final List<Long> requests = new ArrayList<>();
-    private boolean cancelled;
 
     private SequencePublisher(String... values) {
       this.values = List.of(values);
@@ -451,7 +459,7 @@ class HttpEventStreamResponseTest {
 
             @Override
             public void cancel() {
-              cancelled = true;
+              // This finite source has no asynchronous work to release.
             }
           });
     }

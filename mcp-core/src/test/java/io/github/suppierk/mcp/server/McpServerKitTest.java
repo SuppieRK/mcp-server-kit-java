@@ -117,7 +117,7 @@ class McpServerKitTest {
       var invalid = JSON.objectNode().put("name", "find-user");
       invalid.set("arguments", arguments);
       assertEquals(
-          McpInvalidParamsException.CODE,
+          McpInvalidParamsException.ERROR_CODE,
           error(handle(server, request(2, "tools/call", invalid))).code());
     }
     assertEquals(1, calls.get());
@@ -345,7 +345,7 @@ class McpServerKitTest {
             server.decode(server.encode(request(42, "tools/call", parameters))));
     var failure = error(handle(server, decoded));
 
-    assertEquals(McpInvalidParamsException.CODE, failure.code());
+    assertEquals(McpInvalidParamsException.ERROR_CODE, failure.code());
     assertEquals(42, failure.id());
   }
 
@@ -356,7 +356,7 @@ class McpServerKitTest {
         new String(server.encode(request(42, "ping", JSON.objectNode())), StandardCharsets.UTF_8);
 
     assertEquals(
-        McpParseException.CODE,
+        McpParseException.ERROR_CODE,
         assertInstanceOf(
                 JsonRpcErrorResponse.class,
                 server.decode((input + " {}").getBytes(StandardCharsets.UTF_8)))
@@ -435,8 +435,8 @@ class McpServerKitTest {
             .path(0)
             .textValue());
     assertSame(applicationContext, seenContext.get());
-    assertThrows(
-        NullPointerException.class, () -> serverKit.handle(null, request(3, "tools/call", call)));
+    var contextRequest = request(3, "tools/call", call);
+    assertThrows(NullPointerException.class, () -> serverKit.handle(null, contextRequest));
     assertFalse(
         Stream.of(McpServerKit.class.getMethods())
             .anyMatch(
@@ -520,16 +520,16 @@ class McpServerKitTest {
       assertEquals(message, server.decode(server.encode(message)));
     }
     assertEquals(
-        McpParseException.CODE,
+        McpParseException.ERROR_CODE,
         assertInstanceOf(
                 JsonRpcErrorResponse.class,
                 server.decode("not json".getBytes(StandardCharsets.UTF_8)))
             .code());
     assertEquals(
-        McpParseException.CODE,
+        McpParseException.ERROR_CODE,
         assertInstanceOf(JsonRpcErrorResponse.class, server.decode(new byte[0])).code());
     assertEquals(
-        McpInvalidRequestException.CODE,
+        McpInvalidRequestException.ERROR_CODE,
         assertInstanceOf(
                 JsonRpcErrorResponse.class,
                 server.decode("{\"jsonrpc\":\"1.0\"}".getBytes(StandardCharsets.UTF_8)))
@@ -586,7 +586,7 @@ class McpServerKitTest {
     JsonRpcMessage parseFailure = server.decode("not json".getBytes(StandardCharsets.UTF_8));
     assertEquals(parseFailure, handle(server, parseFailure).get(0));
     assertEquals(
-        McpInvalidRequestException.CODE,
+        McpInvalidRequestException.ERROR_CODE,
         error(
                 handle(
                     server,
@@ -670,11 +670,11 @@ class McpServerKitTest {
             JsonTestValues.value(JSON.numberNode(2)),
             "server/discover",
             JsonTestValues.object(JSON.objectNode()));
-    assertEquals(McpInvalidParamsException.CODE, error(handle(server, absent)).code());
+    assertEquals(McpInvalidParamsException.ERROR_CODE, error(handle(server, absent)).code());
     ObjectNode unsupported = JSON.objectNode();
     metadata(unsupported).put(McpProtocol.PROTOCOL_VERSION_KEY, "1900-01-01");
     assertEquals(
-        McpUnsupportedProtocolVersionException.CODE,
+        McpUnsupportedProtocolVersionException.ERROR_CODE,
         error(
                 handle(
                     server,
@@ -734,10 +734,10 @@ class McpServerKitTest {
 
     ObjectNode invalid = JSON.objectNode().put("name", "echo");
     assertEquals(
-        McpInvalidParamsException.CODE,
+        McpInvalidParamsException.ERROR_CODE,
         error(handle(server, request(3, "tools/call", invalid))).code());
     assertEquals(
-        McpInvalidParamsException.CODE,
+        McpInvalidParamsException.ERROR_CODE,
         error(handle(server, request(4, "tools/call", JSON.objectNode().put("name", "missing"))))
             .code());
 
@@ -754,7 +754,7 @@ class McpServerKitTest {
                                     List.of(new McpTextContent("missing output")))))
             .build();
     assertEquals(
-        McpInternalException.CODE,
+        McpInternalException.ERROR_CODE,
         error(handle(invalidOutput, request(5, "tools/call", call))).code());
   }
 
@@ -838,7 +838,7 @@ class McpServerKitTest {
             .path("text")
             .textValue());
     assertEquals(
-        McpInvalidParamsException.CODE,
+        McpInvalidParamsException.ERROR_CODE,
         error(
                 handle(
                     server,
@@ -854,7 +854,7 @@ class McpServerKitTest {
             .path("name")
             .textValue());
     assertEquals(
-        McpInvalidParamsException.CODE,
+        McpInvalidParamsException.ERROR_CODE,
         error(handle(server, request(7, "prompts/get", JSON.objectNode().put("name", "hello"))))
             .code());
     ObjectNode promptRequest = JSON.objectNode().put("name", "hello");
@@ -871,7 +871,7 @@ class McpServerKitTest {
   }
 
   @Test
-  void usesApplicationOwnedAsyncExecutionAndInfrastructureFailures() throws Exception {
+  void usesApplicationOwnedAsyncExecutionAndInfrastructureFailures() {
     AtomicReference<String> thread = new AtomicReference<>();
     ExecutorService executor =
         Executors.newSingleThreadExecutor(runnable -> new Thread(runnable, "mcp-test-executor"));
@@ -897,7 +897,7 @@ class McpServerKitTest {
               .textValue());
       assertEquals("mcp-test-executor", thread.get());
       assertEquals(
-          McpMethodNotFoundException.CODE,
+          McpMethodNotFoundException.ERROR_CODE,
           error(handle(server, request(2, "missing", JSON.objectNode()))).code());
     } finally {
       executor.shutdownNow();
@@ -912,7 +912,7 @@ class McpServerKitTest {
                 })
             .build();
     JsonRpcErrorResponse failure = error(handle(thrown, request(1, "failure", JSON.objectNode())));
-    assertEquals(McpInternalException.CODE, failure.code());
+    assertEquals(McpInternalException.ERROR_CODE, failure.code());
     assertEquals("Internal error", failure.message());
     assertEquals(Optional.empty(), failure.data());
   }
@@ -945,13 +945,10 @@ class McpServerKitTest {
     assertEquals(2, subscriber.messages.size());
     subscriber.subscription.cancel();
     server.close();
-    assertThrows(
-        IllegalStateException.class,
-        () ->
-            server.emit(
-                new McpResourceUpdatedNotification(
-                    new McpResourceUpdatedNotificationParams(
-                        Optional.empty(), URI.create("file:///live")))));
+    var changedResource =
+        new McpResourceUpdatedNotification(
+            new McpResourceUpdatedNotificationParams(Optional.empty(), URI.create("file:///live")));
+    assertThrows(IllegalStateException.class, () -> server.emit(changedResource));
 
     RecordingSubscriber closed = new RecordingSubscriber();
     server
@@ -982,14 +979,11 @@ class McpServerKitTest {
                         .handler(
                             (applicationContext, request, handlerContext) -> toolResult("x"))));
     for (String method : clientToServerMethods()) {
-      assertThrows(
-          IllegalArgumentException.class,
-          () ->
-              McpServerKit.mcpServerKit("x", "1", McpEmptyContext.class)
-                  .syncMethod(
-                      method,
-                      (applicationContext, request, handlerContext) -> response(request, "x"))
-                  .build());
+      var reservedMethod =
+          McpServerKit.mcpServerKit("x", "1", McpEmptyContext.class)
+              .syncMethod(
+                  method, (applicationContext, request, handlerContext) -> response(request, "x"));
+      assertThrows(IllegalArgumentException.class, reservedMethod::build);
     }
     assertThrows(
         IllegalArgumentException.class,
@@ -999,13 +993,12 @@ class McpServerKitTest {
                     tool.name("bad")
                         .inputSchema(Map.of())
                         .handler((context, parameters, control) -> toolResult("bad"))));
+    var fileUri = URI.create("file:///x");
+    var invalidTheme = Optional.of("other");
     assertThrows(
         IllegalArgumentException.class,
-        () ->
-            new McpIcon(
-                Optional.empty(), Optional.empty(), URI.create("file:///x"), Optional.of("other")));
-    assertThrows(
-        IllegalArgumentException.class, () -> new McpResource(URI.create("file:///x"), " "));
+        () -> new McpIcon(Optional.empty(), Optional.empty(), fileUri, invalidTheme));
+    assertThrows(IllegalArgumentException.class, () -> new McpResource(fileUri, " "));
     assertThrows(IllegalArgumentException.class, () -> new McpPrompt(" "));
     assertThrows(
         IllegalArgumentException.class, () -> new McpPromptArgument(" ", Optional.empty(), false));
@@ -1035,18 +1028,14 @@ class McpServerKitTest {
       schema.put("$id", baseIdentifier);
     }
 
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            McpServerKit.mcpServerKit("schema", "1", McpEmptyContext.class)
-                .syncTool(
-                    registration ->
-                        registration
-                            .name("external")
-                            .inputSchema(JsonTestValues.object(schema))
-                            .handler(
-                                (applicationContext, request, handlerContext) -> toolResult("x")))
-                .build());
+    var schemaBuilder = McpServerKit.mcpServerKit("schema", "1", McpEmptyContext.class);
+    schemaBuilder.syncTool(
+        registration ->
+            registration
+                .name("external")
+                .inputSchema(JsonTestValues.object(schema))
+                .handler((applicationContext, request, handlerContext) -> toolResult("x")));
+    assertThrows(IllegalArgumentException.class, schemaBuilder::build);
   }
 
   @Test
@@ -1130,7 +1119,9 @@ class McpServerKitTest {
     assertEquals(
         "done",
         JsonTestValues.json(
-                success(server, handle(server, request(44, McpCompleteRequest.METHOD, completion)))
+                success(
+                        server,
+                        handle(server, request(44, McpCompleteRequest.METHOD_NAME, completion)))
                     .result())
             .path("completion")
             .path("values")
@@ -1209,16 +1200,16 @@ class McpServerKitTest {
 
   private static List<String> clientToServerMethods() {
     return List.of(
-        McpDiscoverRequest.METHOD,
-        McpListToolsRequest.METHOD,
-        McpCallToolRequest.METHOD,
-        McpListResourcesRequest.METHOD,
-        McpListResourceTemplatesRequest.METHOD,
-        McpReadResourceRequest.METHOD,
-        McpSubscriptionsListenRequest.METHOD,
-        McpListPromptsRequest.METHOD,
-        McpGetPromptRequest.METHOD,
-        McpCompleteRequest.METHOD);
+        McpDiscoverRequest.METHOD_NAME,
+        McpListToolsRequest.METHOD_NAME,
+        McpCallToolRequest.METHOD_NAME,
+        McpListResourcesRequest.METHOD_NAME,
+        McpListResourceTemplatesRequest.METHOD_NAME,
+        McpReadResourceRequest.METHOD_NAME,
+        McpSubscriptionsListenRequest.METHOD_NAME,
+        McpListPromptsRequest.METHOD_NAME,
+        McpGetPromptRequest.METHOD_NAME,
+        McpCompleteRequest.METHOD_NAME);
   }
 
   private static Stream<Arguments> protocolExceptions() {

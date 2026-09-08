@@ -111,12 +111,15 @@ class HttpPrimitiveBuilderTest {
 
   @Test
   void buildersKeepTheExistingRequiredFieldValidation() {
-    assertThrows(NullPointerException.class, () -> httpMcpRequest().build());
-    assertThrows(
-        NullPointerException.class, () -> httpMcpRequest().method("POST").body(null).build());
-    assertThrows(
-        NullPointerException.class, () -> httpMcpRequest().method("POST").headers(null).build());
-    assertThrows(NullPointerException.class, () -> httpJsonResponse().body(null).build());
-    assertThrows(NullPointerException.class, () -> httpJsonResponse().headers(null).build());
+    var missingMethod = httpMcpRequest();
+    var nullRequestBody = httpMcpRequest().method("POST").body(null);
+    var nullRequestHeaders = httpMcpRequest().method("POST").headers(null);
+    var nullResponseBody = httpJsonResponse().body(null);
+    var nullResponseHeaders = httpJsonResponse().headers(null);
+    assertThrows(NullPointerException.class, missingMethod::build);
+    assertThrows(NullPointerException.class, nullRequestBody::build);
+    assertThrows(NullPointerException.class, nullRequestHeaders::build);
+    assertThrows(NullPointerException.class, nullResponseBody::build);
+    assertThrows(NullPointerException.class, nullResponseHeaders::build);
   }
 }

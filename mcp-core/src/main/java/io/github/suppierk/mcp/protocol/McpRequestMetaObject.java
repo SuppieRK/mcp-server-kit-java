@@ -39,15 +39,6 @@ public record McpRequestMetaObject(
   }
 
   /**
-   * Returns a deep copy of the application-defined metadata.
-   *
-   * @return the additional metadata
-   */
-  public Map<String, ?> extensions() {
-    return extensions;
-  }
-
-  /**
    * Returns a copy of the optional progress token.
    *
    * @return the copied token

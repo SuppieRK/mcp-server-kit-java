@@ -21,15 +21,15 @@ class McpRequestMethodTest {
             "prompts/get",
             "completion/complete"),
         List.of(
-            McpDiscoverRequest.METHOD,
-            McpListToolsRequest.METHOD,
-            McpCallToolRequest.METHOD,
-            McpListResourcesRequest.METHOD,
-            McpListResourceTemplatesRequest.METHOD,
-            McpReadResourceRequest.METHOD,
-            McpSubscriptionsListenRequest.METHOD,
-            McpListPromptsRequest.METHOD,
-            McpGetPromptRequest.METHOD,
-            McpCompleteRequest.METHOD));
+            McpDiscoverRequest.METHOD_NAME,
+            McpListToolsRequest.METHOD_NAME,
+            McpCallToolRequest.METHOD_NAME,
+            McpListResourcesRequest.METHOD_NAME,
+            McpListResourceTemplatesRequest.METHOD_NAME,
+            McpReadResourceRequest.METHOD_NAME,
+            McpSubscriptionsListenRequest.METHOD_NAME,
+            McpListPromptsRequest.METHOD_NAME,
+            McpGetPromptRequest.METHOD_NAME,
+            McpCompleteRequest.METHOD_NAME));
   }
 }

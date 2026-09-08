@@ -110,7 +110,7 @@ class McpControllerTest {
     params.putObject("_meta").put("progressToken", "hello-progress");
     var response =
         exchange(
-            request("/mcp/public", McpCallToolRequest.METHOD, params)
+            request("/mcp/public", McpCallToolRequest.METHOD_NAME, params)
                 .accept(MediaType.APPLICATION_JSON_TYPE, MediaType.TEXT_EVENT_STREAM_TYPE));
 
     assertEquals(HttpStatus.OK, response.getStatus());
@@ -134,7 +134,7 @@ class McpControllerTest {
         exchange(
             request(
                 "/mcp/public",
-                McpCallToolRequest.METHOD,
+                McpCallToolRequest.METHOD_NAME,
                 toolCall("hello", JSON.createObjectNode())));
 
     assertEquals(HttpStatus.OK, response.getStatus());
@@ -164,7 +164,7 @@ class McpControllerTest {
     MutableHttpRequest<String> request =
         request(
                 "/mcp/protected",
-                McpCallToolRequest.METHOD,
+                McpCallToolRequest.METHOD_NAME,
                 toolCall("current-user", JSON.createObjectNode()))
             .basicAuth(USERNAME, PASSWORD);
 
@@ -182,7 +182,7 @@ class McpControllerTest {
     MutableHttpRequest<String> request =
         request(
                 "/mcp/protected",
-                McpCallToolRequest.METHOD,
+                McpCallToolRequest.METHOD_NAME,
                 toolCall("current-user", JSON.createObjectNode().put("unexpected", "value")))
             .basicAuth(USERNAME, PASSWORD);
 
@@ -201,10 +201,10 @@ class McpControllerTest {
   @Test
   void exposesSeparateFixedRegistries() throws Exception {
     HttpResponse<String> publicList =
-        exchange(request("/mcp/public", McpListToolsRequest.METHOD, JSON.createObjectNode()));
+        exchange(request("/mcp/public", McpListToolsRequest.METHOD_NAME, JSON.createObjectNode()));
     HttpResponse<String> protectedList =
         exchange(
-            request("/mcp/protected", McpListToolsRequest.METHOD, JSON.createObjectNode())
+            request("/mcp/protected", McpListToolsRequest.METHOD_NAME, JSON.createObjectNode())
                 .basicAuth(USERNAME, PASSWORD));
 
     JsonNode publicTools = json(publicList).path("result").path("tools");

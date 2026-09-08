@@ -20,7 +20,7 @@ public record McpClientNotification(McpCancelledNotificationParams params)
     implements JsonRpcMessage {
 
   /** The notification wire-method name. */
-  public static final String METHOD = "notifications/cancelled";
+  public static final String METHOD_NAME = "notifications/cancelled";
 
   /** Validates and copies the protocol fields. */
   public McpClientNotification {
@@ -42,7 +42,7 @@ public record McpClientNotification(McpCancelledNotificationParams params)
    * @return the constant value
    */
   public String method() {
-    return METHOD;
+    return METHOD_NAME;
   }
 
   /**

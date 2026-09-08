@@ -1,5 +1,6 @@
 package io.github.suppierk.mcp.protocol;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -68,10 +69,10 @@ class McpProtocolModelTest {
     var expected = Map.of("name", "hello", "inputSchema", Map.of("type", "object"));
     assertEquals(List.of(expected), discovery.tools());
     assertEquals(List.of(expected), sampling.tools().orElseThrow());
-    assertThrows(UnsupportedOperationException.class, () -> discovery.tools().get(0).clear());
-    assertThrows(
-        UnsupportedOperationException.class,
-        () -> ((Map<?, ?>) sampling.tools().orElseThrow().get(0).get("inputSchema")).clear());
+    var discoveredTool = discovery.tools().get(0);
+    var sampledSchema = (Map<?, ?>) sampling.tools().orElseThrow().get(0).get("inputSchema");
+    assertThrows(UnsupportedOperationException.class, discoveredTool::clear);
+    assertThrows(UnsupportedOperationException.class, sampledSchema::clear);
     try (var kit = McpServerKit.mcpServerKit("wire", "1", McpEmptyContext.class).build()) {
       var json = JsonMapper.builder().build();
       assertEquals(
@@ -224,11 +225,11 @@ class McpProtocolModelTest {
         continue;
       }
       for (RecordComponent component : value.getClass().getRecordComponents()) {
-        component.getAccessor().invoke(value);
+        assertDoesNotThrow(() -> component.getAccessor().invoke(value), component::getName);
       }
       for (Method method : value.getClass().getDeclaredMethods()) {
         if (Modifier.isPublic(method.getModifiers()) && method.getParameterCount() == 0) {
-          method.invoke(value);
+          assertDoesNotThrow(() -> method.invoke(value), method::getName);
         }
       }
     }

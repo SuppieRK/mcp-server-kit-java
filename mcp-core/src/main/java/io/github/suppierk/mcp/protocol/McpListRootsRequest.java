@@ -15,7 +15,7 @@ import java.util.Optional;
  */
 public record McpListRootsRequest(Optional<Map<String, ?>> params) implements McpInputRequest {
 
-  private static final String METHOD = "roots/list";
+  private static final String METHOD_NAME = "roots/list";
 
   /** Validates and copies the protocol fields. */
   public McpListRootsRequest {
@@ -37,7 +37,7 @@ public record McpListRootsRequest(Optional<Map<String, ?>> params) implements Mc
    * @return the constant value
    */
   public String method() {
-    return METHOD;
+    return METHOD_NAME;
   }
 
   /**

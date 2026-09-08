@@ -118,14 +118,12 @@ class SpringWebMvcMcpAdapterTest {
             .getStatusCode()
             .value());
     assertSame(applicationContext, seen.get());
+    var discoveryRequest = request("application/json", "server/discover");
+    var discoveryResponse = new MockHttpServletResponse();
+    var discoveryBody = body(true, "server/discover");
     assertThrows(
         NullPointerException.class,
-        () ->
-            contextAdapter.handle(
-                null,
-                request("application/json", "server/discover"),
-                new MockHttpServletResponse(),
-                body(true, "server/discover")));
+        () -> contextAdapter.handle(null, discoveryRequest, discoveryResponse, discoveryBody));
   }
 
   private static MockHttpServletRequest request(String accept, String method) {

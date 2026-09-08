@@ -101,7 +101,9 @@ class McpSubscriptionNotificationTest {
                       first.completeExceptionally(failure);
                     }
 
-                    public void onComplete() {}
+                    public void onComplete() {
+                      // This probe only waits for the first subscription acknowledgement.
+                    }
                   });
           try {
             subscription.get().request(1);
@@ -258,7 +260,8 @@ class McpSubscriptionNotificationTest {
     assertEquals(30, JsonTestValues.json(terminal.result().meta().subscriptionId()).intValue());
     assertEquals("complete", terminal.result().resultType());
     subscriber.completion.orTimeout(5, TimeUnit.SECONDS).join();
-    assertThrows(IllegalStateException.class, () -> server.emit(toolChanged()));
+    var changedTools = toolChanged();
+    assertThrows(IllegalStateException.class, () -> server.emit(changedTools));
   }
 
   @Test

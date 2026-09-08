@@ -2,6 +2,7 @@ package io.github.suppierk.mcp.transport.stdio;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -85,7 +86,7 @@ class StdioMcpTransportTest {
             });
     var reader = new Thread(running, "stdio-first-client");
     reader.start();
-    try {
+    try (firstClient) {
       firstClient.write((request(1, "pending", "") + "\n").getBytes(StandardCharsets.UTF_8));
       firstClient.flush();
       started.get(5, TimeUnit.SECONDS);
@@ -119,7 +120,6 @@ class StdioMcpTransportTest {
       assertEquals("", secondDiagnostics.toString(StandardCharsets.UTF_8));
       assertTrue(first.complete(new JsonRpcResultResponse(1, Map.of("value", "first"))));
     } finally {
-      firstClient.close();
       try {
         running.get(5, TimeUnit.SECONDS);
       } finally {
@@ -405,7 +405,7 @@ class StdioMcpTransportTest {
     StdioMcpTransport<McpEmptyContext> transport =
         StdioMcpTransport.system(server, McpEmptyContext.INSTANCE);
 
-    assertTrue(transport != null);
+    assertNotNull(transport);
   }
 
   @Test
@@ -499,16 +499,14 @@ class StdioMcpTransportTest {
     assertSame(applicationContext, first.get());
     assertSame(applicationContext, second.get());
     assertEquals(0, applicationContext.closeCalls);
+    var emptyInput = new ByteArrayInputStream(new byte[0]);
+    var protocolOutput = new ByteArrayOutputStream();
+    var diagnosticOutput = new ByteArrayOutputStream();
     assertThrows(
         NullPointerException.class,
         () ->
             new StdioMcpTransport<>(
-                serverKit,
-                null,
-                new ByteArrayInputStream(new byte[0]),
-                new ByteArrayOutputStream(),
-                new ByteArrayOutputStream(),
-                Runnable::run));
+                serverKit, null, emptyInput, protocolOutput, diagnosticOutput, Runnable::run));
   }
 
   private static String cancellation(int id) {

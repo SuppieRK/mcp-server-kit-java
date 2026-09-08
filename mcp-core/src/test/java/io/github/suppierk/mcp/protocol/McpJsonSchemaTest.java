@@ -48,10 +48,10 @@ class McpJsonSchemaTest {
             "$defs",
             Map.of("label", Map.of("type", "string"))),
         schema);
-    assertThrows(
-        UnsupportedOperationException.class, () -> ((Map<?, ?>) schema.get("properties")).clear());
-    assertThrows(
-        UnsupportedOperationException.class, () -> ((List<?>) schema.get("required")).clear());
+    var properties = (Map<?, ?>) schema.get("properties");
+    var required = (List<?>) schema.get("required");
+    assertThrows(UnsupportedOperationException.class, properties::clear);
+    assertThrows(UnsupportedOperationException.class, required::clear);
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -188,7 +188,8 @@ class McpJsonSchemaTest {
             Map.entry("x-mcp-header", "User")),
         schema);
     assertThrows(UnsupportedOperationException.class, schema::clear);
-    assertThrows(UnsupportedOperationException.class, () -> ((List<?>) schema.get("enum")).clear());
+    var choices = (List<?>) schema.get("enum");
+    assertThrows(UnsupportedOperationException.class, choices::clear);
     assertThrows(IllegalArgumentException.class, () -> mcpJsonStringSchema(s -> s.minLength(-1)));
     assertThrows(IllegalArgumentException.class, () -> mcpJsonStringSchema(s -> s.maxLength(-1)));
     assertThrows(

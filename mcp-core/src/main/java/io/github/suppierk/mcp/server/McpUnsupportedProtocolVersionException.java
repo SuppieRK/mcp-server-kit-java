@@ -9,7 +9,7 @@ public final class McpUnsupportedProtocolVersionException extends McpProtocolExc
   @Serial private static final long serialVersionUID = 1L;
 
   /** The fixed wire error code. */
-  public static final int CODE = -32022;
+  public static final int ERROR_CODE = -32022;
 
   /** The unsupported revision requested by the client. */
   private final String requestedRevision;
@@ -26,7 +26,7 @@ public final class McpUnsupportedProtocolVersionException extends McpProtocolExc
    */
   public McpUnsupportedProtocolVersionException(
       String message, String requestedRevision, List<String> supportedRevisions) {
-    super(CODE, message);
+    super(ERROR_CODE, message);
     this.requestedRevision = Objects.requireNonNull(requestedRevision, "requestedRevision");
     this.supportedRevisions = List.copyOf(supportedRevisions);
   }

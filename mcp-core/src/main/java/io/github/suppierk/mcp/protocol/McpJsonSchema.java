@@ -14,6 +14,8 @@ import java.util.function.Consumer;
  * These helpers construct schemas; the server kit performs full schema compilation and validation.
  */
 public final class McpJsonSchema {
+  private static final String ADDITIONAL_PROPERTIES = "additionalProperties";
+
   private McpJsonSchema() {}
 
   /**
@@ -21,7 +23,7 @@ public final class McpJsonSchema {
    *
    * @return the immutable schema
    */
-  public static Map<String, ?> mcpJsonObjectSchema() {
+  public static Map<String, Object> mcpJsonObjectSchema() {
     return mcpJsonObjectSchema(schema -> {});
   }
 
@@ -31,7 +33,7 @@ public final class McpJsonSchema {
    * @param configure the configuration callback
    * @return the immutable schema
    */
-  public static Map<String, ?> mcpJsonObjectSchema(Consumer<ObjectBuilder> configure) {
+  public static Map<String, Object> mcpJsonObjectSchema(Consumer<ObjectBuilder> configure) {
     return configure(new ObjectBuilder(), configure);
   }
 
@@ -40,7 +42,7 @@ public final class McpJsonSchema {
    *
    * @return the immutable schema
    */
-  public static Map<String, ?> mcpJsonStringSchema() {
+  public static Map<String, Object> mcpJsonStringSchema() {
     return mcpJsonStringSchema(schema -> {});
   }
 
@@ -50,7 +52,7 @@ public final class McpJsonSchema {
    * @param configure the configuration callback
    * @return the immutable schema
    */
-  public static Map<String, ?> mcpJsonStringSchema(Consumer<StringBuilder> configure) {
+  public static Map<String, Object> mcpJsonStringSchema(Consumer<StringBuilder> configure) {
     return configure(new StringBuilder(), configure);
   }
 
@@ -59,7 +61,7 @@ public final class McpJsonSchema {
    *
    * @return the immutable schema
    */
-  public static Map<String, ?> mcpJsonIntegerSchema() {
+  public static Map<String, Object> mcpJsonIntegerSchema() {
     return mcpJsonIntegerSchema(schema -> {});
   }
 
@@ -69,7 +71,7 @@ public final class McpJsonSchema {
    * @param configure the configuration callback
    * @return the immutable schema
    */
-  public static Map<String, ?> mcpJsonIntegerSchema(Consumer<NumberBuilder> configure) {
+  public static Map<String, Object> mcpJsonIntegerSchema(Consumer<NumberBuilder> configure) {
     return configure(new NumberBuilder("integer"), configure);
   }
 
@@ -78,7 +80,7 @@ public final class McpJsonSchema {
    *
    * @return the immutable schema
    */
-  public static Map<String, ?> mcpJsonNumberSchema() {
+  public static Map<String, Object> mcpJsonNumberSchema() {
     return mcpJsonNumberSchema(schema -> {});
   }
 
@@ -88,7 +90,7 @@ public final class McpJsonSchema {
    * @param configure the configuration callback
    * @return the immutable schema
    */
-  public static Map<String, ?> mcpJsonNumberSchema(Consumer<NumberBuilder> configure) {
+  public static Map<String, Object> mcpJsonNumberSchema(Consumer<NumberBuilder> configure) {
     return configure(new NumberBuilder("number"), configure);
   }
 
@@ -97,7 +99,7 @@ public final class McpJsonSchema {
    *
    * @return the immutable schema
    */
-  public static Map<String, ?> mcpJsonBooleanSchema() {
+  public static Map<String, Object> mcpJsonBooleanSchema() {
     return mcpJsonBooleanSchema(schema -> {});
   }
 
@@ -107,7 +109,7 @@ public final class McpJsonSchema {
    * @param configure the configuration callback
    * @return the immutable schema
    */
-  public static Map<String, ?> mcpJsonBooleanSchema(Consumer<BooleanBuilder> configure) {
+  public static Map<String, Object> mcpJsonBooleanSchema(Consumer<BooleanBuilder> configure) {
     return configure(new BooleanBuilder(), configure);
   }
 
@@ -116,7 +118,7 @@ public final class McpJsonSchema {
    *
    * @return the immutable schema
    */
-  public static Map<String, ?> mcpJsonArraySchema() {
+  public static Map<String, Object> mcpJsonArraySchema() {
     return mcpJsonArraySchema(schema -> {});
   }
 
@@ -126,12 +128,13 @@ public final class McpJsonSchema {
    * @param configure the configuration callback
    * @return the immutable schema
    */
-  public static Map<String, ?> mcpJsonArraySchema(Consumer<ArrayBuilder> configure) {
+  public static Map<String, Object> mcpJsonArraySchema(Consumer<ArrayBuilder> configure) {
     return configure(new ArrayBuilder(), configure);
   }
 
   /** Invokes the callback once, then detaches its JSON values. */
-  private static <B extends Builder<B>> Map<String, ?> configure(B builder, Consumer<B> configure) {
+  private static <B extends Builder<B>> Map<String, Object> configure(
+      B builder, Consumer<B> configure) {
     Objects.requireNonNull(configure, "configure").accept(builder);
     return McpProtocol.copyObject(builder.values);
   }
@@ -141,8 +144,7 @@ public final class McpJsonSchema {
    *
    * @param <B> the concrete builder type
    */
-  public abstract static sealed class Builder<B extends Builder<B>>
-      permits ObjectBuilder, StringBuilder, NumberBuilder, BooleanBuilder, ArrayBuilder {
+  public abstract static sealed class Builder<B extends Builder<B>> {
     private static final Set<String> ANNOTATIONS =
         Set.of("type", "title", "description", "enum", "const", "default");
     final Map<String, Object> values = new LinkedHashMap<>();
@@ -410,8 +412,8 @@ public final class McpJsonSchema {
     private final ArrayList<String> required = new ArrayList<>();
 
     private ObjectBuilder() {
-      super("object", "properties", "required", "additionalProperties");
-      values.put("additionalProperties", false);
+      super("object", "properties", "required", ADDITIONAL_PROPERTIES);
+      values.put(ADDITIONAL_PROPERTIES, false);
     }
 
     /**
@@ -421,7 +423,7 @@ public final class McpJsonSchema {
      * @return this builder
      */
     public ObjectBuilder additionalProperties(boolean value) {
-      return put("additionalProperties", value);
+      return put(ADDITIONAL_PROPERTIES, value);
     }
 
     /**
@@ -431,7 +433,7 @@ public final class McpJsonSchema {
      * @return this builder
      */
     public ObjectBuilder additionalProperties(Map<String, ?> value) {
-      return put("additionalProperties", value);
+      return put(ADDITIONAL_PROPERTIES, value);
     }
 
     /**

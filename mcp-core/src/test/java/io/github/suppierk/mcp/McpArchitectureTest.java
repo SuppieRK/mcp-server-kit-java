@@ -572,7 +572,9 @@ class McpArchitectureTest {
     public static final class Builder {
       private Optional<String> value;
 
-      public Builder() {}
+      public Builder() {
+        // Deliberately public: the architecture rule must reject this constructor.
+      }
 
       public Builder value(Optional<String> value) {
         this.value = value;
@@ -612,6 +614,8 @@ class McpArchitectureTest {
     }
 
     public static final class Builder {
+      // Deliberately wrong and unread: the rule must inspect the backing field type.
+      @SuppressWarnings("java:S1068")
       private Optional<Object> value = Optional.empty();
 
       private Builder() {}

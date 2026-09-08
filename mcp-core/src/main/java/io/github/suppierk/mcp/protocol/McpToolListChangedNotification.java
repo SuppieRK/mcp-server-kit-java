@@ -16,7 +16,7 @@ import java.util.function.Consumer;
 public record McpToolListChangedNotification(Optional<McpNotificationParams> params)
     implements McpSubscriptionNotification {
 
-  private static final String METHOD = "notifications/tools/list_changed";
+  private static final String METHOD_NAME = "notifications/tools/list_changed";
 
   /** Validates and copies the protocol fields. */
   public McpToolListChangedNotification {
@@ -38,7 +38,7 @@ public record McpToolListChangedNotification(Optional<McpNotificationParams> par
    * @return the constant value
    */
   public String method() {
-    return METHOD;
+    return METHOD_NAME;
   }
 
   /**

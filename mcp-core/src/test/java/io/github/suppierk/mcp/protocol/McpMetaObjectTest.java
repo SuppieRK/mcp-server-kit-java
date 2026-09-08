@@ -13,7 +13,8 @@ class McpMetaObjectTest {
     values.put("owner", "first");
     McpMetaObject metadata = new McpMetaObject(values);
     values.put("owner", "changed");
-    assertThrows(UnsupportedOperationException.class, () -> metadata.values().clear());
+    var snapshot = metadata.values();
+    assertThrows(UnsupportedOperationException.class, snapshot::clear);
     assertEquals("first", metadata.values().get("owner"));
   }
 }

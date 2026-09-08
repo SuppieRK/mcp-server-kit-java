@@ -14,7 +14,7 @@ public record McpCallToolRequest(Object id, McpCallToolRequestParams params)
     implements McpClientRequest {
 
   /** The request wire-method name. */
-  public static final String METHOD = "tools/call";
+  public static final String METHOD_NAME = "tools/call";
 
   /** Validates and copies the protocol fields. */
   public McpCallToolRequest {
@@ -46,7 +46,7 @@ public record McpCallToolRequest(Object id, McpCallToolRequestParams params)
    * @return the constant value
    */
   public String method() {
-    return METHOD;
+    return METHOD_NAME;
   }
 
   /**

@@ -14,7 +14,7 @@ public record McpGetPromptRequest(Object id, McpGetPromptRequestParams params)
     implements McpClientRequest {
 
   /** The request wire-method name. */
-  public static final String METHOD = "prompts/get";
+  public static final String METHOD_NAME = "prompts/get";
 
   /** Validates and copies the protocol fields. */
   public McpGetPromptRequest {
@@ -46,7 +46,7 @@ public record McpGetPromptRequest(Object id, McpGetPromptRequestParams params)
    * @return the constant value
    */
   public String method() {
-    return METHOD;
+    return METHOD_NAME;
   }
 
   /**

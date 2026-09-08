@@ -302,11 +302,10 @@ class StreamableHttpMcpTransportTest {
             valid.body());
     assertEquals(403, response(configured, invalidMethod).status());
 
+    var invalidOrigins = Set.of(URI.create("https://example.com/path"));
     assertThrows(
         IllegalArgumentException.class,
-        () ->
-            new StreamableHttpMcpTransport<>(
-                server, Set.of(URI.create("https://example.com/path"))));
+        () -> new StreamableHttpMcpTransport<>(server, invalidOrigins));
     assertEquals(
         Set.of(List.of(McpServerKit.class), List.of(McpServerKit.class, Set.class)),
         Arrays.stream(StreamableHttpMcpTransport.class.getConstructors())
@@ -797,7 +796,9 @@ class StreamableHttpMcpTransportTest {
     }
 
     @Override
-    public void onComplete() {}
+    public void onComplete() {
+      // This subscriber records message and error signals only.
+    }
   }
 
   private record ApplicationContext(String value) {}

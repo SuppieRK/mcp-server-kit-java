@@ -27,11 +27,12 @@ class HttpMcpRequestTest {
     assertEquals(List.of("first", "second", "third"), request.headers().get("X-TRACE"));
     assertEquals(List.of("one", "two"), request.headers().get("unrelated"));
     assertArrayEquals("body".getBytes(StandardCharsets.UTF_8), request.body());
+    var traceValues = request.headers().get("x-trace");
+    var headers = request.headers();
+    var additionalValues = List.of("value");
+    assertThrows(UnsupportedOperationException.class, () -> traceValues.add("fourth"));
     assertThrows(
-        UnsupportedOperationException.class, () -> request.headers().get("x-trace").add("fourth"));
-    assertThrows(
-        UnsupportedOperationException.class,
-        () -> request.headers().put("Another", List.of("value")));
+        UnsupportedOperationException.class, () -> headers.put("Another", additionalValues));
   }
 
   @Test

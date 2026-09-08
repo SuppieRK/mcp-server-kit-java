@@ -19,7 +19,7 @@ public record McpSubscriptionsAcknowledgedNotification(
     McpSubscriptionsAcknowledgedNotificationParams params)
     implements McpServerNotification, JsonRpcMessage {
 
-  private static final String METHOD = "notifications/subscriptions/acknowledged";
+  private static final String METHOD_NAME = "notifications/subscriptions/acknowledged";
 
   /** Validates and copies the protocol fields. */
   public McpSubscriptionsAcknowledgedNotification {
@@ -41,7 +41,7 @@ public record McpSubscriptionsAcknowledgedNotification(
    * @return the constant value
    */
   public String method() {
-    return METHOD;
+    return METHOD_NAME;
   }
 
   /**

@@ -13,7 +13,7 @@ import java.util.function.Consumer;
 public record McpProgressNotification(McpProgressNotificationParams params)
     implements McpServerNotification, JsonRpcMessage {
 
-  private static final String METHOD = "notifications/progress";
+  private static final String METHOD_NAME = "notifications/progress";
 
   /** Validates and copies the protocol fields. */
   public McpProgressNotification {
@@ -35,7 +35,7 @@ public record McpProgressNotification(McpProgressNotificationParams params)
    * @return the constant value
    */
   public String method() {
-    return METHOD;
+    return METHOD_NAME;
   }
 
   /**

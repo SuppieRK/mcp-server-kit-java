@@ -76,7 +76,7 @@ class SpringWebMvcExampleApplicationTest {
     EndpointResponse response =
         post(
             "/mcp/public",
-            McpCallToolRequest.METHOD,
+            McpCallToolRequest.METHOD_NAME,
             toolCall("hello", JSON.createObjectNode()),
             null);
 
@@ -101,7 +101,7 @@ class SpringWebMvcExampleApplicationTest {
     EndpointResponse response =
         post(
             "/mcp/protected",
-            McpCallToolRequest.METHOD,
+            McpCallToolRequest.METHOD_NAME,
             toolCall("current-user", JSON.createObjectNode()),
             headers -> headers.setBasicAuth(USERNAME, PASSWORD));
 
@@ -118,7 +118,7 @@ class SpringWebMvcExampleApplicationTest {
     EndpointResponse response =
         post(
             "/mcp/protected",
-            McpCallToolRequest.METHOD,
+            McpCallToolRequest.METHOD_NAME,
             toolCall("current-user", arguments),
             headers -> headers.setBasicAuth(USERNAME, PASSWORD));
 
@@ -129,11 +129,11 @@ class SpringWebMvcExampleApplicationTest {
   @Test
   void exposesSeparateFixedRegistries() throws Exception {
     EndpointResponse publicList =
-        post("/mcp/public", McpListToolsRequest.METHOD, JSON.createObjectNode(), null);
+        post("/mcp/public", McpListToolsRequest.METHOD_NAME, JSON.createObjectNode(), null);
     EndpointResponse protectedList =
         post(
             "/mcp/protected",
-            McpListToolsRequest.METHOD,
+            McpListToolsRequest.METHOD_NAME,
             JSON.createObjectNode(),
             headers -> headers.setBasicAuth(USERNAME, PASSWORD));
 

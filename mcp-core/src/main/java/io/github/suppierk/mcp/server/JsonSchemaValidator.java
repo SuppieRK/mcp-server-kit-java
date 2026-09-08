@@ -82,12 +82,8 @@ final class JsonSchemaValidator {
       if (current.depth() > MAXIMUM_DEPTH) {
         return "The JSON document is nested too deeply";
       }
-      if (schema && current.node().isObject()) {
-        JsonNode reference = current.node().get("$ref");
-        JsonNode dynamicReference = current.node().get("$dynamicRef");
-        if (isExternalReference(reference) || isExternalReference(dynamicReference)) {
-          return "External JSON Schema references are not allowed";
-        }
+      if (schema && hasExternalReference(current.node())) {
+        return "External JSON Schema references are not allowed";
       }
       current
           .node()
@@ -98,6 +94,12 @@ final class JsonSchemaValidator {
       }
     }
     return null;
+  }
+
+  /** Checks both supported reference keywords on one schema object. */
+  private static boolean hasExternalReference(JsonNode node) {
+    return node.isObject()
+        && (isExternalReference(node.get("$ref")) || isExternalReference(node.get("$dynamicRef")));
   }
 
   /** Tests whether a textual reference identifies another document. */
