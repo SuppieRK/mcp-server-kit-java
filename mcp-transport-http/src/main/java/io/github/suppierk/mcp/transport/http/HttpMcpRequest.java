@@ -1,6 +1,7 @@
 package io.github.suppierk.mcp.transport.http;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -69,6 +70,34 @@ public record HttpMcpRequest(String method, Map<String, List<String>> headers, b
   @Override
   public byte[] body() {
     return body.clone();
+  }
+
+  /** Compares the method, case-preserved header entries, and body bytes by value. */
+  @Override
+  public boolean equals(Object other) {
+    return other instanceof HttpMcpRequest request
+        && method.equals(request.method)
+        // Use ordinary map equality, not the lookup map's case-insensitive comparator.
+        && Map.copyOf(headers).equals(Map.copyOf(request.headers))
+        && Arrays.equals(body, request.body);
+  }
+
+  /** Hashes the method, case-preserved header entries, and body bytes by value. */
+  @Override
+  public int hashCode() {
+    return Objects.hash(method, headers, Arrays.hashCode(body));
+  }
+
+  /** Describes the method, header entries, and body bytes. */
+  @Override
+  public String toString() {
+    return "HttpMcpRequest[method="
+        + method
+        + ", headers="
+        + headers
+        + ", body="
+        + Arrays.toString(body)
+        + "]";
   }
 
   /**
