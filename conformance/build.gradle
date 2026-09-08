@@ -1,0 +1,44 @@
+plugins {
+	id 'java'
+}
+
+description = 'Test-only upstream MCP conformance verification'
+
+dependencies {
+	testImplementation project(':mcp-transport-http')
+}
+
+def runnerDirectory = layout.buildDirectory.dir('runner')
+
+def prepareConformanceRunner = tasks.register('prepareConformanceRunner', Copy) {
+	from 'package.json', 'package-lock.json'
+	into runnerDirectory
+}
+
+def installConformanceRunner = tasks.register('installConformanceRunner', Exec) {
+	group = 'verification'
+	description = 'Installs the locked upstream conformance runner as a test-only dependency.'
+	dependsOn prepareConformanceRunner
+	workingDir runnerDirectory
+	def npm = System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('windows')
+			? ['cmd', '/c', 'npm.cmd'] : ['npm']
+	commandLine npm + [
+		'ci',
+		'--include=dev',
+		'--ignore-scripts',
+		'--no-audit',
+		'--no-fund'
+	]
+	inputs.files('package.json', 'package-lock.json')
+	outputs.dir(runnerDirectory.map { it.dir('node_modules') })
+}
+
+tasks.named('test', Test) {
+	dependsOn installConformanceRunner
+	testLogging.showStandardStreams = true
+	inputs.files('package.json', 'package-lock.json')
+	outputs.dir(layout.buildDirectory.dir('reports/conformance'))
+	systemProperty 'conformance.runner', runnerDirectory.get()
+			.file('node_modules/@modelcontextprotocol/conformance/dist/index.js').asFile.absolutePath
+	systemProperty 'conformance.reports', layout.buildDirectory.dir('reports/conformance').get().asFile.absolutePath
+}

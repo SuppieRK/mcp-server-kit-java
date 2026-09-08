@@ -1,9 +1,15 @@
 package io.github.suppierk.mcp.server;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.github.suppierk.mcp.protocol.McpCreateMessageResult;
+import io.github.suppierk.mcp.protocol.McpElicitResult;
 import io.github.suppierk.mcp.protocol.McpInputRequests;
+import io.github.suppierk.mcp.protocol.McpInputResponse;
 import io.github.suppierk.mcp.protocol.McpInputResponses;
 import io.github.suppierk.mcp.protocol.McpJsonNull;
+import io.github.suppierk.mcp.protocol.McpListRootsResult;
 import io.github.suppierk.mcp.protocol.McpMetaObject;
 import io.github.suppierk.mcp.protocol.McpRequestMetaObject;
 import java.util.ArrayList;
@@ -80,6 +86,7 @@ final class ProtocolJson extends JacksonAnnotationIntrospector {
                 });
           }
         };
+    module.setMixInAnnotation(McpInputResponse.class, InputResponseTypes.class);
     module.addSerializer(
         McpJsonNull.class,
         new ValueSerializer<McpJsonNull>() {
@@ -107,6 +114,15 @@ final class ProtocolJson extends JacksonAnnotationIntrospector {
         });
     return module;
   }
+
+  /** Selects the three input result shapes without adding wire tags or public annotations. */
+  @JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION)
+  @JsonSubTypes({
+    @JsonSubTypes.Type(McpElicitResult.class),
+    @JsonSubTypes.Type(McpCreateMessageResult.class),
+    @JsonSubTypes.Type(McpListRootsResult.class)
+  })
+  private interface InputResponseTypes {}
 
   /** Preserves the protocol's empty-optional contract through contextual deserialization. */
   private static final class OptionalValues extends Jdk8OptionalDeserializer {

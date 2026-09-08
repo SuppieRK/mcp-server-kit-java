@@ -10,7 +10,8 @@ Use a GitHub issue for a large change. Describe the problem and the smallest use
 
 The Gradle daemon and toolchains use Java 25. Gradle downloads a matching JDK when necessary. The
 published modules and all examples except Micronaut compile with `--release 17`. The Micronaut
-example compiles with `--release 25`. Run this command before you open a pull request:
+example compiles with `--release 25`. Install Node.js 22 with npm for the upstream MCP conformance
+test. Both executables must be on your `PATH`. Run this command before you open a pull request:
 
 ```text
 ./gradlew check
@@ -21,6 +22,36 @@ Run `./gradlew spotlessApply` to format Java and Gradle files. Add tests for cha
 Public and protected production API methods must have appropriate Javadocs or a valid inherited
 contract. Write technical text in ASD-STE100 Simplified Technical English. Keep sentences short.
 Use one term for one concept. Use active voice where practical. State requirements unambiguously.
+
+## MCP conformance test
+
+Normal `./gradlew check` and `./gradlew build` include `:conformance:test`. CI runs the same test.
+Run `./gradlew :conformance:test --rerun-tasks` to run it separately, including when it is up to date.
+Gradle uses `npm ci` to install the locked test-only runner under `conformance/build/runner/`.
+The first run requires access to the npm registry. No Node dependency enters a published module.
+
+The test runs the official [MCP conformance runner](https://github.com/modelcontextprotocol/conformance)
+at the explicitly pinned prerelease `0.2.0-alpha.11`. The stable `0.1.16` runner does not support
+this kit's protocol revision. The test runs the full server SDK profile with `--requirements 2026-07-28`.
+A test-only JDK HTTP host binds to an ephemeral loopback port. It forwards requests and responses
+through `McpServerKit` and `StreamableHttpMcpTransport`.
+The fixture supplies the diagnostic tools, resources, prompts, and application-owned workflows
+that the upstream scenarios require. Client SDK and authorization-server tests are separate roles.
+
+The [pinned profile](https://github.com/modelcontextprotocol/conformance/blob/c321dd32035556e6769d3724a8ee97d87c3faaac/requirements/2026-07-28.yaml)
+runs 37 required server scenarios and 13 non-scored diagnostics. The test checks that all reports
+exist and every required scenario actually exercised behavior. Any required failure fails the build.
+Upstream warnings and individual capability-conditional skips remain visible. There is no local
+expected-failure baseline. The optional Tasks extension is not implemented; its diagnostic failures
+remain in the reports and do not affect the upstream profile's verdict. One Tasks diagnostic is
+unconditionally skipped by this runner version. JSON Schema and header diagnostics also run.
+
+The runner has a five-minute limit. Runner failure fails the build. Logs and upstream JSON reports
+are under `conformance/build/reports/conformance/run-*/`. JUnit reports are under
+`conformance/build/reports/tests/test/`. CI retains these reports even when the build fails.
+When updating the runner, update both `conformance/package.json` and its lockfile. Review the pinned
+requirements and `conformance/src/test/resources/required-server-scenarios.txt` before accepting
+changes to the expected coverage. CI uses Node.js 22; the pinned npm dependency graph is test-only.
 
 ## Java quality checks
 

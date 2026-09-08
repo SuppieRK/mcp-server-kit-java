@@ -1,0 +1,9 @@
+{
+  "name": "mcp-server-kit-conformance",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pinned test-only upstream MCP conformance runner",
+  "devDependencies": {
+    "@modelcontextprotocol/conformance": "0.2.0-alpha.11"
+  }
+}

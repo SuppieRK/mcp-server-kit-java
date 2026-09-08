@@ -29,6 +29,7 @@ rootProject.name = 'mcp-server-kit-java'
 
 include 'mcp-core'
 include 'benchmarks'
+include 'conformance'
 include 'mcp-transport-stdio'
 include 'mcp-transport-http'
 include 'mcp-spring-webmvc'

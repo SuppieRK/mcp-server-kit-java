@@ -7,7 +7,9 @@ import static io.github.suppierk.mcp.server.McpServerKit.mcpServerKit;
 import io.github.suppierk.mcp.protocol.JsonRpcErrorResponse;
 import io.github.suppierk.mcp.protocol.JsonRpcMessage;
 import io.github.suppierk.mcp.protocol.JsonRpcNotification;
+import io.github.suppierk.mcp.protocol.McpCallToolRequest;
 import io.github.suppierk.mcp.protocol.McpCallToolResult;
+import io.github.suppierk.mcp.protocol.McpElicitResult;
 import io.github.suppierk.mcp.protocol.McpTextContent;
 import io.github.suppierk.mcp.server.McpEmptyContext;
 import io.github.suppierk.mcp.server.McpServerKit;
@@ -139,6 +141,22 @@ public final class IsolatedConsumer {
             .build()) {
       var notice = new JsonRpcNotification("example/notice", Map.of("value", List.of(1, "two")));
       require(notice.equals(kit.decode(kit.encode(notice))), "Protocol round trip");
+      var retry =
+          kit.decode(
+              """
+          {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{
+            "name":"hello","arguments":{"name":"Ada"},
+            "_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28",
+                     "io.modelcontextprotocol/clientCapabilities":{}},
+            "inputResponses":{"answer":{"action":"accept","content":{"name":"Ada"}}}}}
+          """
+                  .getBytes(StandardCharsets.UTF_8));
+      require(
+          retry instanceof McpCallToolRequest call
+              && call.params().inputResponses().orElseThrow().values().get("answer")
+                  instanceof McpElicitResult form
+              && "Ada".equals(form.content().orElseThrow().get("name")),
+          "Client input subtype mapping in the packaged runtime");
       String prefix =
           "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2026-07-28\",\"io.modelcontextprotocol/clientCapabilities\":{}},\"name\":\"hello\",\"arguments\":";
       var valid = invoke(kit, prefix + "{\"name\":\"Ada\"}}}");

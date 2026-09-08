@@ -22,6 +22,13 @@ jobs:
           distribution: temurin
           java-version: 25
 
+      - name: Set up Node for MCP conformance
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: conformance/package-lock.json
+
       - name: Validate the Gradle wrapper
         uses: gradle/actions/wrapper-validation@v6.2.0
 
@@ -52,29 +59,22 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-      - name: Run MCP 2026-07-28 conformance
-        shell: bash
-        run: |
-          ./gradlew :examples:javalin:installDist
-          examples/javalin/build/install/javalin/bin/javalin > build/conformance-server.log 2>&1 &
-          server_pid=$!
-          trap 'kill "$server_pid"' EXIT
-          for _ in {1..30}; do
-            if curl --silent --output /dev/null http://127.0.0.1:8080/; then
-              break
-            fi
-            sleep 1
-          done
-          npx --yes @modelcontextprotocol/conformance@0.2.0-alpha.11 server \
-            --url http://127.0.0.1:8080/mcp \
-            --scenario server-stateless \
-            --spec-version 2026-07-28
-
       - name: Publish signed artifacts to the local Maven repository
         run: ./gradlew publishToMavenLocal --no-configuration-cache
         env:
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEYPASSWORD }}
+
+      - name: Upload conformance reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: conformance-reports
+          path: |
+            conformance/build/reports/conformance/
+            conformance/build/reports/tests/
+            conformance/build/test-results/
+          if-no-files-found: warn
 
       - name: Require signatures for each public module
         shell: bash
