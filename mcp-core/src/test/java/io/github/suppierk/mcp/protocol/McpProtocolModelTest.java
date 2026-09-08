@@ -584,6 +584,8 @@ class McpProtocolModelTest {
     }
   }
 
+  // Each record owns a distinct Builder class; discover it by the required naming convention.
+  @SuppressWarnings("java:S1872")
   private static Object buildSample(Class<?> type, Map<Class<?>, Object> cache)
       throws ReflectiveOperationException {
     Method factory =

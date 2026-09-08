@@ -12,12 +12,14 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.header.HeaderWriterFilter;
 
 /** Shows how a Spring WebMVC host connects MCP building blocks to host-owned security. */
 @SpringBootApplication
@@ -104,7 +106,19 @@ public class SpringWebMvcExampleApplication {
    */
   @Bean
   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-    return http.csrf(csrf -> csrf.ignoringRequestMatchers("/mcp/**"))
+    return http.headers(
+            headers ->
+                headers.withObjectPostProcessor(
+                    new ObjectPostProcessor<HeaderWriterFilter>() {
+                      @Override
+                      public <F extends HeaderWriterFilter> F postProcess(F filter) {
+                        // Finish security headers before StreamingResponseBody starts writing
+                        // from another thread; servlet response headers are not thread-safe.
+                        filter.setShouldWriteHeadersEagerly(true);
+                        return filter;
+                      }
+                    }))
+        .csrf(csrf -> csrf.ignoringRequestMatchers("/mcp/**"))
         .authorizeHttpRequests(
             requests ->
                 requests
