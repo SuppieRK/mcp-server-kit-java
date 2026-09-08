@@ -5,15 +5,66 @@ import static io.github.suppierk.mcp.transport.http.HttpJsonResponse.httpJsonRes
 import static io.github.suppierk.mcp.transport.http.HttpMcpRequest.httpMcpRequest;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class HttpPrimitiveBuilderTest {
+  // equals itself is under test, including null and unrelated types, not JUnit's equality helper.
+  @SuppressWarnings("java:S5785")
+  @Test
+  void jsonResponseCopiesHaveValueSemantics() {
+    var response = httpJsonResponse().body(new byte[] {3, 4}).build();
+    var copy = new HttpJsonResponse(response.status(), response.headers(), response.body());
+
+    assertEquals(response, copy);
+    assertEquals(response.hashCode(), copy.hashCode());
+    assertEquals(response.toString(), copy.toString());
+    assertTrue(new HashSet<>(Set.of(response)).contains(copy));
+    assertNotEquals(response, httpJsonResponse().status(201).body(new byte[] {3, 4}).build());
+    assertNotEquals(
+        response,
+        httpJsonResponse()
+            .headers(Map.of("Content-Type", "application/json"))
+            .body(new byte[] {3, 4})
+            .build());
+    assertNotEquals(response, httpJsonResponse().body(new byte[] {3, 5}).build());
+    assertFalse(response.equals(null));
+    assertFalse(response.equals("response"));
+  }
+
+  // Keep direct equals calls so null and unrelated-type checks exercise the request contract.
+  @SuppressWarnings("java:S5785")
+  @Test
+  void requestCopiesHaveValueSemantics() {
+    var request =
+        httpMcpRequest()
+            .method("POST")
+            .headers(Map.of("Content-Type", List.of("application/json")))
+            .body(new byte[] {1, 2})
+            .build();
+    var copy = new HttpMcpRequest(request.method(), request.headers(), request.body());
+
+    assertEquals(request, copy);
+    assertEquals(request.hashCode(), copy.hashCode());
+    assertEquals(request.toString(), copy.toString());
+    assertTrue(new HashSet<>(Set.of(request)).contains(copy));
+    assertNotEquals(request, new HttpMcpRequest("GET", request.headers(), request.body()));
+    assertNotEquals(request, new HttpMcpRequest("POST", Map.of(), request.body()));
+    assertNotEquals(request, new HttpMcpRequest("POST", request.headers(), new byte[] {1, 3}));
+    assertFalse(request.equals(null));
+    assertFalse(request.equals("request"));
+  }
+
   @Test
   void requestBuilderPreservesNormalizationAndDefensiveCopies() {
     var values = new ArrayList<>(List.of("application/json"));

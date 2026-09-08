@@ -1,5 +1,6 @@
 package io.github.suppierk.mcp.transport.http;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 
@@ -32,6 +33,33 @@ public record HttpJsonResponse(int status, Map<String, String> headers, byte[] b
    */
   public byte[] body() {
     return body.clone();
+  }
+
+  /** Compares response metadata and body bytes by value. */
+  @Override
+  public boolean equals(Object other) {
+    return other instanceof HttpJsonResponse response
+        && status == response.status
+        && headers.equals(response.headers)
+        && Arrays.equals(body, response.body);
+  }
+
+  /** Hashes response metadata and body bytes by value. */
+  @Override
+  public int hashCode() {
+    return Objects.hash(status, headers, Arrays.hashCode(body));
+  }
+
+  /** Describes the response metadata and body bytes. */
+  @Override
+  public String toString() {
+    return "HttpJsonResponse[status="
+        + status
+        + ", headers="
+        + headers
+        + ", body="
+        + Arrays.toString(body)
+        + "]";
   }
 
   /**

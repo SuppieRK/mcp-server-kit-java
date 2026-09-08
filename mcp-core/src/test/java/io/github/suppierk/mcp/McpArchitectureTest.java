@@ -15,11 +15,13 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
+import io.github.suppierk.mcp.internal.JsonValues;
 import io.github.suppierk.mcp.protocol.JsonRpcMessage;
 import io.github.suppierk.mcp.protocol.JsonRpcResponse;
 import io.github.suppierk.mcp.protocol.McpBaseMetadata;
 import io.github.suppierk.mcp.protocol.McpCacheableResult;
 import io.github.suppierk.mcp.protocol.McpIcon;
+import io.github.suppierk.mcp.protocol.McpJsonSchema;
 import io.github.suppierk.mcp.server.McpProtocolException;
 import io.github.suppierk.mcp.server.McpServerKit;
 import java.lang.reflect.AnnotatedElement;
@@ -318,10 +320,8 @@ class McpArchitectureTest {
               ScanOption.recursive(),
               ScanOption.except(McpServerKit.class),
               // Static schema/copy helpers have no instances or value equality contract.
-              ScanOption.except(
-                  type ->
-                      type.getName().equals("io.github.suppierk.mcp.protocol.McpJsonSchema")
-                          || type.getName().equals("io.github.suppierk.mcp.internal.JsonValues")),
+              ScanOption.except(McpJsonSchema.class),
+              ScanOption.except(JsonValues.class),
               ScanOption.except(
                   type ->
                       type.getName().equals(SCHEMA_VALIDATOR)
@@ -434,6 +434,8 @@ class McpArchitectureTest {
     };
   }
 
+  // This rule verifies the nested class name itself, not an object's runtime type.
+  @SuppressWarnings("java:S1872")
   private static List<String> builderViolations(Class<?> recordType) {
     List<String> violations = new ArrayList<>();
     Class<?> builderType =

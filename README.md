@@ -1,8 +1,8 @@
 # MCP Server Kit for Java
 
 [![CI](https://github.com/SuppieRK/mcp-server-kit-java/actions/workflows/ci.yml/badge.svg)](https://github.com/SuppieRK/mcp-server-kit-java/actions/workflows/ci.yml)
-[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=suppierk_mcp-server-kit-java&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=suppierk_mcp-server-kit-java)
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=suppierk_mcp-server-kit-java&metric=coverage)](https://sonarcloud.io/summary/new_code?id=suppierk_mcp-server-kit-java)
+[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=SuppieRK_mcp-server-kit-java&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=SuppieRK_mcp-server-kit-java)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=SuppieRK_mcp-server-kit-java&metric=coverage)](https://sonarcloud.io/summary/new_code?id=SuppieRK_mcp-server-kit-java)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 MCP Server Kit for Java supplies small building blocks for Model Context Protocol (MCP) hosts. The

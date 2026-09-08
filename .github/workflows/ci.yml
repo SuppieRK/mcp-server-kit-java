@@ -21,7 +21,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 25
@@ -34,7 +34,7 @@ jobs:
           cache-dependency-path: conformance/package-lock.json
 
       - name: Validate the Gradle wrapper
-        uses: gradle/actions/wrapper-validation@v6.2.0
+        uses: gradle/actions/wrapper-validation@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
       - name: Cache SonarQube Cloud packages
         uses: actions/cache@v6
@@ -54,10 +54,19 @@ jobs:
         run: ./gradlew clean build
 
       - name: Run SonarQube Cloud analysis and wait for the gate
+        id: sonar
         if: env.SONAR_TOKEN != ''
         run: ./gradlew sonar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Capture failed main-branch quality gate details
+        if: always() && steps.sonar.outcome == 'failure' && github.ref == 'refs/heads/main'
+        run: |
+          curl --fail --silent --show-error \
+            --header "Authorization: Bearer $SONAR_TOKEN" \
+            'https://sonarcloud.io/api/qualitygates/project_status?projectKey=SuppieRK_mcp-server-kit-java&branch=main' \
+            --output build/reports/sonar-quality-gate.json
 
       - name: Upload quality reports
         if: always()
@@ -68,8 +77,11 @@ jobs:
             build/reports/jacoco/
             */build/reports/jacoco/
             build/reports/checkstyle/
+            build/reports/sonar-quality-gate.json
             */build/reports/checkstyle/
             conformance/build/reports/conformance/
-            conformance/build/reports/tests/
-            conformance/build/test-results/
+            */build/reports/tests/
+            */build/test-results/
+            examples/*/build/reports/tests/
+            examples/*/build/test-results/
           if-no-files-found: error
